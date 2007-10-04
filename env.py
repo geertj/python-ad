@@ -1,0 +1,57 @@
+# vi: ts=4 sw=4 et
+#
+# env.py: setup environment variabels.
+#
+# This small utility outputs a bourne shell fragment that sets up the
+# PATH and PYTHONPATH environment variables such that FreeADI can be used
+# from within its source directory. This is required for the test suite,
+# and is helpful for developing. Kudos to the py-lib team for the idea.
+#
+# This file is part of FreeADI. FreeADI is free software and is made available
+# under the terms of the GNU General Public License, version 3. Consult the
+# file "LICENSE" that is distributed together with this file for the exact
+# licensing terms.
+#
+# FreeADI is copyright (c) 2007 by the FreeADI authors. See the file "AUTHORS"
+# for a complete overview.
+
+import os
+import os.path
+import sys
+
+
+def prepend_path(name, value):
+    if sys.platform == 'win32':
+        sep = ';'
+    else:
+        sep = ':'
+    env_path = os.environ.get(name, '')
+    parts = [ x for x in env_path.split(sep) if x ]
+    while value in parts:
+        del parts[parts.index(value)]
+    parts.insert(0, value)
+    return setenv(name, sep.join(parts))
+
+def setenv(name, value):
+    shell = os.environ.get('SHELL', '')
+    comspec = os.environ.get('COMSPEC', '')
+    if shell.endswith('csh'):
+        cmd = 'setenv %s "%s"' % (name, value)
+    elif shell.endswith('sh'):
+        cmd = '%s="%s"; export %s' % (name, value, name)
+    elif comspec.endswith('cmd.exe'):
+        cmd = '@set %s=%s' % (name, value)
+    else:
+        assert False, 'Shell not supported.'
+    return cmd
+
+
+abspath = os.path.abspath(sys.argv[0])
+topdir, fname = os.path.split(abspath)
+
+bindir = os.path.join(topdir, 'bin')
+print prepend_path('PATH', bindir)
+pythondir = topdir
+print prepend_path('PYTHONPATH', pythondir)
+testconf = os.path.join(topdir, 'test.conf')
+print setenv('TESTCONF', testconf)
