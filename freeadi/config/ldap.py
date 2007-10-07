@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # This file is part of FreeADI. FreeADI is free software and is made available
 # under the terms of the GNU General Public License, version 3. Consult the
@@ -8,14 +7,13 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file "AUTHORS"
 # for a complete overview.
 
-# This script generates the PLY parser tables. Note: It needs to be run from
-# the directory holding the parsers!!
+from parse_ldap import LdapParser
+from write_ldap import LdapWriter
+from config import Config
 
-from freeadi.config.parse_krb5 import Krb5Parser
-from freeadi.config.parse_ldap import LdapParser
 
-parser = Krb5Parser()
-parser._write_parsetab()
+class LdapConfig(Config):
+    """nss_ldap/OpenLDAP configuration file access."""
 
-parser = LdapParser()
-parser._write_parsetab()
+    def __init__(self):
+        super(LdapConfig, self).__init__(LdapParser, LdapWriter)
