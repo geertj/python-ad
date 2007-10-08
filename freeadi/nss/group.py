@@ -8,7 +8,7 @@
 # for a complete overview.
 
 from ctypes import Structure, POINTER, c_char_p, c_int
-from freeadi.nss.namingservice import NamingService
+from freeadi.nss.namingsvc import NamingService
 
 
 class Group(Structure):
@@ -30,7 +30,7 @@ class Group(Structure):
                                 members)
 
 
-def GroupNamingService(NamingService):
+class GroupNamingService(NamingService):
     """The group naming service.
 
     This object provides an iterator over the Unix "group" database for a
@@ -39,24 +39,24 @@ def GroupNamingService(NamingService):
 
     result_type = Group
 
-    def __init__(self):
+    def __init__(self, service):
         """Constructor."""
-        super(GroupNamingService, self).__init__()
+        super(GroupNamingService, self).__init__(service)
         self._load_functions()
 
     def _load_functions(self):
         """Load functions from the dll."""
         func = self._get_symbol('setgrent')
         func.argtypes = []
-        func.restype = [c_int]
+        func.restype = c_int
         self._setgrent = func
         func = self._get_symbol('getgrent_r')
         func.argtypes = [POINTER(Group), c_char_p, c_int, POINTER(c_int)]
-        func.restype = [c_int]
+        func.restype = c_int
         self._getgrent_r = func
         func = self._get_symbol('endgrent')
         func.argtypes = []
-        func.restype = [c_int]
+        func.restype = c_int
         self._endgrent = func
 
     def _setent(self):
@@ -65,7 +65,7 @@ def GroupNamingService(NamingService):
 
     def _getent(self, result, buffer, size, errno):
         """Return the next entry."""
-        return self._getgrent(result, buffer, size, errno)
+        return self._getgrent_r(result, buffer, size, errno)
 
     def _endent(self):
         """Finalize the enumeration."""

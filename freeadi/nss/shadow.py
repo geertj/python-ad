@@ -7,8 +7,8 @@
 # Freeadi is copyright (c) 2007 by the freeadi authors. See the file "AUTHORS"
 # for a complete overview.
 
-import ctypes import Structure, POINTER, c_char_p, c_int
-from freeadi.nss.namingservice import NamingService
+from ctypes import Structure, POINTER, c_char_p, c_int, c_long, c_ulong
+from freeadi.nss.namingsvc import NamingService
 
 
 class Spwd(Structure):
@@ -22,16 +22,16 @@ class Spwd(Structure):
                 ('sp_warn', c_long),
                 ('sp_inact', c_long),
                 ('sp_expire', c_long),
-                ('sp_flag', c_ulong)]
+                ('sp_flag', c_long)]
 
     def __str__(self):
         return '%s:%s:%d:%d:%d:%d:%d:%d:%d' % \
-                    (self.sp_namp, self.sp_pwdp, self.sp_lstchg, self.sp_min
-                     self.sp_max, sepf.sp_warn, self.sp_inact, self.sp_expire,
+                    (self.sp_namp, self.sp_pwdp, self.sp_lstchg, self.sp_min,
+                     self.sp_max, self.sp_warn, self.sp_inact, self.sp_expire,
                      self.sp_flag)
 
 
-def ShadowNamingService(NamingService):
+class ShadowNamingService(NamingService):
     """The shadow naming service.
 
     This object provides an iterator over the Unix "shadow" naming service
@@ -40,24 +40,24 @@ def ShadowNamingService(NamingService):
 
     result_type = Spwd
 
-    def __init__(self):
+    def __init__(self, service):
         """Constructor."""
-        super(ShadowNamingService, self).__init__()
+        super(ShadowNamingService, self).__init__(service)
         self._load_functions()
 
     def _load_functions(self):
         """Load functions from the dll."""
         func = self._get_symbol('setspent')
         func.argtypes = []
-        func.restype = [c_int]
+        func.restype = c_int
         self._setspent = func
         func = self._get_symbol('getspent_r')
-        func.argtypes = [POINTER(Shadow), c_char_p, c_int, POINTER(c_int)]
-        func.restype = [c_int]
+        func.argtypes = [POINTER(Spwd), c_char_p, c_int, POINTER(c_int)]
+        func.restype = c_int
         self._getspent_r = func
         func = self._get_symbol('endspent')
         func.argtypes = []
-        func.restype = [c_int]
+        func.restype = c_int
         self._endspent = func
 
     def _setent(self):
@@ -66,7 +66,7 @@ def ShadowNamingService(NamingService):
 
     def _getent(self, result, buffer, size, errno):
         """Return the next entry."""
-        return self._getspent(result, buffer, size, errno)
+        return self._getspent_r(result, buffer, size, errno)
 
     def _endent(self):
         """Finalize the enumeration."""

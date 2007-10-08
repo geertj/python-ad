@@ -20,7 +20,7 @@ class Automnt(Structure):
         return '%s %s' % (self.key, self.value)
 
 
-def AutomntNamingService(NamingService):
+class AutomntNamingService(NamingService):
     """The automount naming service.
 
     This provides for automount enumeration on a single naming service module.

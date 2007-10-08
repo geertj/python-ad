@@ -7,7 +7,14 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file "AUTHORS"
 # for a complete overview.
 
-from freeadi.exception import FreeADIError
+from freeadi.nss.group import GroupNamingService
 
-class NssError(FreeADIError):
-    """Base class for NSS errors."""
+
+class TestGroupNS(object):
+
+    def test_compare_etc_group(self):
+        fin = file('/etc/group')
+        lines = [ line.strip() for line in fin ]
+        ns = GroupNamingService('files')
+        entries = [ str(entry) for entry in ns ]
+        assert lines == entries

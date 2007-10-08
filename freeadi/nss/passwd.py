@@ -7,8 +7,8 @@
 # Freeadi is copyright (c) 2007 by the freeadi authors. See the file "AUTHORS"
 # for a complete overview.
 
-import ctypes import Structure, POINTER, c_char_p, c_int
-from freeadi.nss.namingservice import NamingService
+from ctypes import Structure, POINTER, c_char_p, c_int
+from freeadi.nss.namingsvc import NamingService
 
 
 class Passwd(Structure):
@@ -28,31 +28,33 @@ class Passwd(Structure):
                      self.pw_gecos, self.pw_dir, self.pw_shell)
 
 
-def PasswdNamingService(NamingService):
+class PasswdNamingService(NamingService):
     """The passwd naming service.
 
     This object provides an iterator over the Unix "passwd" naming service
     from a specific NSS module.
     """
 
-    def __init__(self):
+    result_type = Passwd
+
+    def __init__(self, service):
         """Constructor."""
-        super(PasswdNamingService, self).__init__()
+        super(PasswdNamingService, self).__init__(service)
         self._load_functions()
 
     def _load_functions(self):
         """Load functions from the dll."""
         func = self._get_symbol('setpwent')
         func.argtypes = []
-        func.restype = [c_int]
+        func.restype = c_int
         self._setpwent = func
         func = self._get_symbol('getpwent_r')
         func.argtypes = [POINTER(Passwd), c_char_p, c_int, POINTER(c_int)]
-        func.restype = [c_int]
+        func.restype = c_int
         self._getpwent_r = func
         func = self._get_symbol('endpwent')
         func.argtypes = []
-        func.restype = [c_int]
+        func.restype = c_int
         self._endpwent = func
 
     def _setent(self):
@@ -61,7 +63,7 @@ def PasswdNamingService(NamingService):
 
     def _getent(self, result, buffer, size, errno):
         """Return the next entry."""
-        return self._getpwent(result, buffer, size, errno)
+        return self._getpwent_r(result, buffer, size, errno)
         
     def _endent(self):
         """Finalize the enumeration."""
