@@ -1,9 +1,301 @@
-#
-# This file is part of freeadi. Freeadi is free software and is made available
-# under the terms of the GNU General Public License, version 3. Consult the
-# file "LICENSE" that is distributed together with this file for the exact
-# licensing terms.
-#
-# Freeadi is copyright (c) 2007 by the freeadi authors. See the file "AUTHORS"
-# for a complete overview.
+dn: cn=Uid-Number,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.0
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 1
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: uidNumber
+adminDisplayName: Uid-Number
+adminDescription: An integer uniquely identifying a user in an 
+ administrative domain
+
+dn: cn=Gid-Number,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.1
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 1
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: gidNumber
+adminDisplayName: Gid-Number
+adminDescription: An integer uniquely identifying a group in an 
+ administrative domain
+
+dn: cn=gecos,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.2
+attributeSyntax: 2.5.5.5
+oMSyntax: 22
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: gecos
+adminDisplayName: gecos
+adminDescription: The GECOS field; the common name
+
+dn: cn=Posix-Home-Directory,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.3
+attributeSyntax: 2.5.5.5
+oMSyntax: 22
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: posixHomeDirectory
+adminDisplayName: Posix-Home-Directory
+adminDescription: The absolute path do the home directory
+
+dn: cn=Login-Shell,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.4
+attributeSyntax: 2.5.5.5
+oMSyntax: 22
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: loginShell
+adminDisplayName: Login-Shell
+adminDescription: The path to the login shell
+
+dn: cn=Shadow-Last-Change,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.5
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: shadowLastChange
+adminDisplayName: Shadow-Last-Change
+
+dn: cn=Shadow-Min,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.6
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: shadowMin
+adminDisplayName: Shadow-Min
+
+dn: cn=Shadow-Max,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.7
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: shadowMax
+adminDisplayName: Shadow-Max
+
+dn: cn=Shadow-Warning,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.8
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: shadowWarning
+adminDisplayName: Shadow-Warning
+
+dn: cn=Shadow-Inactive,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.9
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: shadowInactive
+adminDisplayName: Shadow-Inactive
+
+dn: cn=Shadow-Expire,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.10
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: shadowExpire
+adminDisplayName: Shadow-Expire
+
+dn: cn=Shadow-Flag,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.11
+attributeSyntax: 2.5.5.9
+oMSyntax: 2
+searchFlags: 0
+isSingleValued: TRUE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: shadowFlag
+adminDisplayName: Shadow-Flag
+
+dn: cn=Member-Nis-Netgroup,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.13
+attributeSyntax: 2.5.5.5
+oMSyntax: 22
+searchFlags: 0
+isSingleValued: FALSE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: memberNisNetgroup
+adminDisplayName: Member-Nis-Netgroup
+
+dn: cn=Nis-Netgroup-Triple,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.14
+attributeSyntax: 2.5.5.5
+oMSyntax: 22
+searchFlags: 0
+isSingleValued: FALSE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: nisNetgroupTriple
+adminDisplayName: Nis-Netgroup-Triple
+adminDescription: Netgroup triple
+
+dn: cn=Automount-Information,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: attributeSchema
+attributeID: 1.3.6.1.1.1.1.33
+attributeSyntax: 2.5.5.5
+oMSyntax: 22
+searchFlags: 0
+isSingleValued: FALSE
+isMemberOfPartialAttributeSet: FALSE
+lDAPDisplayName: automountInformation
+adminDisplayName: Automount-Information
+adminDescription: Automount information
+
+dn:
+changetype: modify
+add: schemaUpdateNow
+schemaUpdateNow: 1
+-
+
+dn: cn=Posix-Account,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: classSchema
+objectClassCategory: 3
+governsID: 1.3.6.1.1.1.2.0
+mayContain: uidNumber
+mayContain: gidNumber
+mayContain: posixHomeDirectory
+mayContain: loginShell
+mayContain: gecos
+lDAPDisplayName: posixAccount
+adminDisplayName: Posix-Account
+adminDescription: Abstraction of an account with POSIX attributes
+
+dn: cn=Shadow-Account,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: classSchema
+objectClassCategory: 3
+governsID: 1.3.6.1.1.1.2.1
+mayContain: shadowLastChange
+mayContain: shadowMin
+mayContain: shadowMax
+mayContain: shadowWarning
+mayContain: shadowInactive
+mayContain: shadowExpire
+mayContain: shadowFlag
+lDAPDisplayName: shadowAccount
+adminDisplayName: Shadow-Account
+adminDescription: Additional attributes for shadow passwords
+
+dn: cn=Posix-Group,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: classSchema
+objectClassCategory: 3
+governsID: 1.3.6.1.1.1.2.2
+mayContain: gidNumber
+lDAPDisplayName: posixGroup
+adminDisplayName: Posix-Group
+adminDescription: Abstraction of a group of accounts
+
+dn: cn=Nis-Netgroup,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: classSchema
+objectClassCategory: 1
+governsID: 1.3.6.1.1.1.2.8
+possSuperiors: builtinDomain
+possSuperiors: domainDNS
+possSuperiors: organizationalUnit
+mustContain: cn
+mayContain: nisNetgroupTriple
+mayContain: memberNisNetgroup
+mayContain: description
+lDAPDisplayName: nisNetgroup
+adminDisplayName: Nis-Netgroup
+adminDescription: Abstraction of a netgroup. May refer to other netgroups
+
+dn: cn=Automount-Map,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: classSchema
+objectClassCategory: 1
+governsID: 1.3.6.1.1.1.2.16
+possSuperiors: builtinDomain
+possSuperiors: domainDNS
+possSuperiors: organizationalUnit
+mustContain: cn
+mayContain: description
+lDAPDisplayName: automountMap
+adminDisplayName: Automount-Map
+
+dn: cn=Automount,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: add
+objectClass: classSchema
+objectClassCategory: 1
+governsID: 1.3.6.1.1.1.2.17
+possSuperiors: automountMap
+mustContain: cn
+mustContain: automountInformation
+mayContain: description
+lDAPDisplayName: automount
+adminDisplayName: Automount
+
+dn:
+changetype: modify
+add: schemaUpdateNow
+schemaUpdateNow: 1
+-
+
+dn: cn=user,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: modify
+add: auxiliaryClass
+auxiliaryClass: posixAccount
+auxiliaryClass: shadowAccount
+-
+
+dn: cn=group,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+changetype: modify
+add: auxiliaryClass
+auxiliaryClass: posixGroup
+-
+
+dn:
+changetype: modify
+add: schemaUpdateNow
+schemaUpdateNow: 1
+-
 
