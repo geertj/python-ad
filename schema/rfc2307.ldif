@@ -7,7 +7,7 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file "AUTHORS"
 # for a complete overview.
 
-dn: cn=Uid-Number,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Uid-Number,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.0
@@ -21,7 +21,7 @@ adminDisplayName: Uid-Number
 adminDescription: An integer uniquely identifying a user in an 
  administrative domain
 
-dn: cn=Gid-Number,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Gid-Number,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.1
@@ -35,7 +35,7 @@ adminDisplayName: Gid-Number
 adminDescription: An integer uniquely identifying a group in an 
  administrative domain
 
-dn: cn=gecos,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=gecos,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.2
@@ -48,7 +48,7 @@ lDAPDisplayName: gecos
 adminDisplayName: gecos
 adminDescription: The GECOS field; the common name
 
-dn: cn=Unix-Home-Directory,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Unix-Home-Directory,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.3
@@ -61,7 +61,7 @@ lDAPDisplayName: unixHomeDirectory
 adminDisplayName: Unix-Home-Directory
 adminDescription: The absolute path to the home directory
 
-dn: cn=Login-Shell,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Login-Shell,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.4
@@ -74,7 +74,7 @@ lDAPDisplayName: loginShell
 adminDisplayName: Login-Shell
 adminDescription: The path to the login shell
 
-dn: cn=Shadow-Last-Change,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Last-Change,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.5
@@ -86,7 +86,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: shadowLastChange
 adminDisplayName: Shadow-Last-Change
 
-dn: cn=Shadow-Min,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Min,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.6
@@ -98,7 +98,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: shadowMin
 adminDisplayName: Shadow-Min
 
-dn: cn=Shadow-Max,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Max,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.7
@@ -110,7 +110,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: shadowMax
 adminDisplayName: Shadow-Max
 
-dn: cn=Shadow-Warning,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Warning,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.8
@@ -122,7 +122,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: shadowWarning
 adminDisplayName: Shadow-Warning
 
-dn: cn=Shadow-Inactive,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Inactive,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.9
@@ -134,7 +134,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: shadowInactive
 adminDisplayName: Shadow-Inactive
 
-dn: cn=Shadow-Expire,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Expire,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.10
@@ -146,7 +146,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: shadowExpire
 adminDisplayName: Shadow-Expire
 
-dn: cn=Shadow-Flag,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Flag,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.11
@@ -158,7 +158,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: shadowFlag
 adminDisplayName: Shadow-Flag
 
-dn: cn=Member-Nis-Netgroup,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Member-Nis-Netgroup,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.13
@@ -170,7 +170,7 @@ isMemberOfPartialAttributeSet: FALSE
 lDAPDisplayName: memberNisNetgroup
 adminDisplayName: Member-Nis-Netgroup
 
-dn: cn=Nis-Netgroup-Triple,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Nis-Netgroup-Triple,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.14
@@ -183,7 +183,7 @@ lDAPDisplayName: nisNetgroupTriple
 adminDisplayName: Nis-Netgroup-Triple
 adminDescription: Netgroup triple
 
-dn: cn=Automount-Information,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Automount-Information,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.33
@@ -202,7 +202,7 @@ add: schemaupdatenow
 schemaupdatenow: 1
 -
 
-dn: cn=Posix-Account,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Posix-Account,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 subClassOf: top
 objectClass: classSchema
@@ -217,7 +217,7 @@ lDAPDisplayName: posixAccount
 adminDisplayName: Posix-Account
 adminDescription: Abstraction of an account with POSIX attributes
 
-dn: cn=Shadow-Account,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Shadow-Account,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 subClassOf: top
 objectClass: classSchema
@@ -234,7 +234,7 @@ lDAPDisplayName: shadowAccount
 adminDisplayName: Shadow-Account
 adminDescription: Additional attributes for shadow passwords
 
-dn: cn=Posix-Group,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Posix-Group,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 subClassOf: top
 objectClass: classSchema
@@ -245,7 +245,7 @@ lDAPDisplayName: posixGroup
 adminDisplayName: Posix-Group
 adminDescription: Abstraction of a group of accounts
 
-dn: cn=Nis-Netgroup,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Nis-Netgroup,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 subClassOf: top
 objectClass: classSchema
@@ -262,7 +262,7 @@ lDAPDisplayName: nisNetgroup
 adminDisplayName: Nis-Netgroup
 adminDescription: Abstraction of a netgroup. May refer to other netgroups
 
-dn: cn=Automount-Map,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Automount-Map,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 subClassOf: top
 objectClass: classSchema
@@ -282,7 +282,7 @@ add: schemaupdatenow
 schemaupdatenow: 1
 -
 
-dn: cn=Automount,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Automount,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: add
 subClassOf: top
 objectClass: classSchema
@@ -301,14 +301,14 @@ add: schemaupdatenow
 schemaupdatenow: 1
 -
 
-dn: cn=user,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=user,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: modify
 add: auxiliaryClass
 auxiliaryClass: posixAccount
 auxiliaryClass: shadowAccount
 -
 
-dn: cn=group,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=group,cn=Schema,cn=Configuration,dc=freeadi,dc=org
 changetype: modify
 add: auxiliaryClass
 auxiliaryClass: posixGroup
