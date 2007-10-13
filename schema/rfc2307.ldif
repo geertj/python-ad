@@ -48,7 +48,7 @@ lDAPDisplayName: gecos
 adminDisplayName: gecos
 adminDescription: The GECOS field; the common name
 
-dn: cn=Posix-Home-Directory,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
+dn: cn=Unix-Home-Directory,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
 objectClass: attributeSchema
 attributeID: 1.3.6.1.1.1.1.3
@@ -57,9 +57,9 @@ oMSyntax: 22
 searchFlags: 0
 isSingleValued: TRUE
 isMemberOfPartialAttributeSet: FALSE
-lDAPDisplayName: posixHomeDirectory
-adminDisplayName: Posix-Home-Directory
-adminDescription: The absolute path do the home directory
+lDAPDisplayName: unixHomeDirectory
+adminDisplayName: Unix-Home-Directory
+adminDescription: The absolute path to the home directory
 
 dn: cn=Login-Shell,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
@@ -198,18 +198,19 @@ adminDescription: Automount information
 
 dn:
 changetype: modify
-add: schemaUpdateNow
-schemaUpdateNow: 1
+add: schemaupdatenow
+schemaupdatenow: 1
 -
 
 dn: cn=Posix-Account,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
+subClassOf: top
 objectClass: classSchema
 objectClassCategory: 3
 governsID: 1.3.6.1.1.1.2.0
 mayContain: uidNumber
 mayContain: gidNumber
-mayContain: posixHomeDirectory
+mayContain: unixHomeDirectory
 mayContain: loginShell
 mayContain: gecos
 lDAPDisplayName: posixAccount
@@ -218,6 +219,7 @@ adminDescription: Abstraction of an account with POSIX attributes
 
 dn: cn=Shadow-Account,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
+subClassOf: top
 objectClass: classSchema
 objectClassCategory: 3
 governsID: 1.3.6.1.1.1.2.1
@@ -234,6 +236,7 @@ adminDescription: Additional attributes for shadow passwords
 
 dn: cn=Posix-Group,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
+subClassOf: top
 objectClass: classSchema
 objectClassCategory: 3
 governsID: 1.3.6.1.1.1.2.2
@@ -244,6 +247,7 @@ adminDescription: Abstraction of a group of accounts
 
 dn: cn=Nis-Netgroup,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
+subClassOf: top
 objectClass: classSchema
 objectClassCategory: 1
 governsID: 1.3.6.1.1.1.2.8
@@ -260,6 +264,7 @@ adminDescription: Abstraction of a netgroup. May refer to other netgroups
 
 dn: cn=Automount-Map,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
+subClassOf: top
 objectClass: classSchema
 objectClassCategory: 1
 governsID: 1.3.6.1.1.1.2.16
@@ -271,8 +276,15 @@ mayContain: description
 lDAPDisplayName: automountMap
 adminDisplayName: Automount-Map
 
+dn:
+changetype: modify
+add: schemaupdatenow
+schemaupdatenow: 1
+-
+
 dn: cn=Automount,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
 changetype: add
+subClassOf: top
 objectClass: classSchema
 objectClassCategory: 1
 governsID: 1.3.6.1.1.1.2.17
@@ -285,8 +297,8 @@ adminDisplayName: Automount
 
 dn:
 changetype: modify
-add: schemaUpdateNow
-schemaUpdateNow: 1
+add: schemaupdatenow
+schemaupdatenow: 1
 -
 
 dn: cn=user,cn=Schema,cn=Configuration,dc=digitalfugue,dc=com
@@ -304,7 +316,7 @@ auxiliaryClass: posixGroup
 
 dn:
 changetype: modify
-add: schemaUpdateNow
-schemaUpdateNow: 1
+add: schemaupdatenow
+schemaupdatenow: 1
 -
 
