@@ -7,7 +7,7 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file "AUTHORS"
 # for a complete overview.
 
-from distutils import setup
+from distutils.core import setup, Extension
 
 
 setup(
@@ -18,9 +18,10 @@ setup(
     author_email = 'geert@boskant.nl',
     url = 'http://www.boskant.nl/trac/freeadi',
 
-    packages = ['freeadi', 'freeadi.core', 'freeadi.config',
-                'freeadi.command', 'freeadi.system'],
-    scripts = ['scripts/freeadi.py'],
+    packages = ['freeadi', 'freeadi.ad', 'freeadi.config',
+                'freeadi.nss', 'freeadi.system'],
+    ext_modules = [Extension('freeadi.ad.krb5', ['freeadi/ad/krb5.c'],
+                             libraries=['krb5'])],
     data_files = { 'templates': 'templates/*.tmpl',
                    '/etc': ['config/freeadi.conf'] }
 )

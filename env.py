@@ -54,4 +54,4 @@ print prepend_path('PATH', bindir)
 pythondir = topdir
 print prepend_path('PYTHONPATH', pythondir)
 testconf = os.path.join(topdir, 'test.conf')
-print setenv('TESTCONF', testconf)
+print setenv('FREEADI_TEST_CONFIG', testconf)
