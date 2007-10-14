@@ -29,10 +29,10 @@
 online_tests = 0
 
 # The domain on which to perform the tests
-domain = "freeadi.org"
+domain = freeadi.org
 
 # The administrator account
-admin_account = "Administrator"
+admin_account = Administrator
 
 # The administrator password
 admin_password = "<password>"
