@@ -7,7 +7,13 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file "AUTHORS"
 # for a complete overview.
 
+import dns
+import dns.resolver
+import dns.exception
 import ldap
+import ldap.sasl
+import socket
+
 from freeadi.exception import FreeADIError
 
 
@@ -20,11 +26,9 @@ class ADClient(object):
 
     def __init__(self, domain=None):
         """Constructor."""
-        self.m_domain = domain
-        self.m_uri = None
+        if domain:
+            self.set_domain(domain)
         self.m_connection = None
-        self.m_address = None
-        self.m_hostname = None
         self.m_site = None
         self.m_site_resolved = False
 
@@ -35,6 +39,7 @@ class ADClient(object):
         return uri
 
     def _open_ldap_connection(self, uri):
+        """Open a new LDAP connection and bind it using GSSAPI."""
         ld = ldap.initialize(uri)
         sasl = ldap.sasl.sasl({}, 'GSSAPI')
         ld.procotol_version = 3
@@ -42,8 +47,10 @@ class ADClient(object):
         return ld
 
     def _ldap_connection(self):
+        """Return the (cached) LDAP connection for the domain."""
         if not self.m_connection:
-            uri = self.resolve_server_list('ldap', 'tcp', max=3)
+            servers = self.resolve_server_list('ldap', 'tcp', max=3)
+            uri = self._ldap_uri(servers)
             self.m_connection = self._open_ldap_connection(uri)
         return self.m_connection
 
@@ -86,13 +93,9 @@ class ADClient(object):
             raise ValueError, 'Illegal modify operation: %s' % operation
         return operation
 
-    def _domain_base(self, domain=None):
+    def _search_base(self, domain):
         """Return the base DN of the domain."""
-        if domain is None
-            if not self.m_domain:
-                raise FreeADIError, 'AD domain not set'
-            domain = self.m_domain
-        parts = self.m_domain.split('.')
+        parts = domain.split('.')
         base = ','.join(['dc=%s' % part.lower() for part in parts])
         return base
 
@@ -106,10 +109,10 @@ class ADClient(object):
         scope is 'substree'. `attrs' is the attribute list to retrieve. The
         default is to retrieve all attributes.
         """
-        if filter = None:
+        if filter is None:
             filter = '(objectClass=*)'
         if base is None:
-            base = self._domain_base()
+            base = self._search_base(self.domain())
         if scope is None:
             scope = 'subtree'
         scope = self._ldap_scope(scope)
@@ -169,26 +172,24 @@ class ADClient(object):
         returned by gethostname() includes a domain, the part until the first
         period ('.') is returned.
         """
-        if not self.m_hostname:
-            hostname = socket.gethostname()
-            if '.' in hostname:
-                hostname = hostname.split('.')[0]
-            hostname = self.m_hostname
-        return self.m_hostname
+        hostname = socket.gethostname()
+        if '.' in hostname:
+            hostname = hostname.split('.')[0]
+        return hostname
 
     def _address(self):
         """Return the IP address of the current host.
         
         The IP address is defined as the result of a DNS A query on the short
-        host name."""
-        if not self.m_address:
-            hostname = self._hostname()
-            try:
-                answer = dns.resolver.query(hostname, 'A')
-            except dns.exception.DNSException:
-                raise FreeADIError, 'Could not resolve hostname in DNS'
-            self.m_address = answer.rrset[0].address
-        return self.m_address
+        host name.
+        """
+        hostname = self._hostname()
+        try:
+            answer = dns.resolver.query(hostname, 'A')
+        except dns.exception.DNSException:
+            raise FreeADIError, 'Could not resolve hostname in DNS'
+        address = answer.rrset[0].address
+        return address
 
     def _subnet(self, address, bits):
         """Return a CIDR subnet with `bits' bits for IP address `address'."""
@@ -196,51 +197,59 @@ class ADClient(object):
         if len(parts) != 4:
             raise ValueError, 'Illegal IP address: %s' % address
         parts = map(long, parts)
-        address = parts[0] << 24 + parts[1] << 16 + parts[2] << 8 + parts[3]
-        mask = (1L << bits - 1) << (32 - bits)
+        address = (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3]
+        mask = ((1L << bits) - 1) << (32 - bits)
         masked = address & mask
         parts = [masked >> 24, (masked >> 16) & 0xff,
                  (masked >> 8) & 0xff, masked & 0xff]
-        masked = '.'.join(parts)
-        return masked
+        # Older version of Python add an 'L' suffix to longs so convert to
+        # int first.
+        subnet = '.'.join(map(str, map(int, parts)))
+        return subnet
 
-    def resolve_site(self):
+    def _resolve_site(self):
         """Resolve the site code of the current system."""
         if self.m_site_resolved:
             return self.m_site  # can be None
         # Below we cannot use self.resolve_server_list() to get a list of LDAP
         # servers because that functions depends on this function to return a
-        # site code. Instead we use the domain name which in AD resolves to
-        # the IP addresses of all domain controllers.
-        uri = self._ldap_uri(self.domain())
+        # site code. Instead we use the domain name itself, for which AD
+        # maintains A records for all domain controllers.
+        uri = self._ldap_uri([(self.domain().lower(), ldap.PORT)])
         conn = self._open_ldap_connection(uri)
+        # Read the DN for the configuration naming context from the rootDSE.
+        # In case our domain is a child domain, this naming context will be on
+        # a different domain controller and we will need to reconnect.
         result = conn.search_s('', ldap.SCOPE_BASE)
         if not result:
             m = 'Could not read rootDSE for domain %s' % self.domain()
             raise FreeADIError, m
-        rootdse = result[0]
-        config = rootdse['configurationNamingContext'][0]
-        parts = config.split(',')
-        parts = filter(lambda s: s.startswith('dc='), parts)
+        dn, attrs = result[0]
+        config = attrs['configurationNamingContext'][0]
+        parts = config.lower().split(',')
+        parts = [ s[3:] for s in parts if s.startswith('dc=') ]
         domain = '.'.join(parts)
-        # Reconnect if the domain of the configuration naming context is
-        # different from the current domain. This happens if our domain is a
-        # child domain of some other domain.
         if domain != self.domain():
             conn.unbind_s()
-            uri = self._ldap_uri(domain)
+            uri = self._ldap_uri([(domain, ldap.PORT)])
             conn = self._open_ldap_connection(uri)
+        # For performance purposes we fire of one query to match for all
+        # possible subnets, instead of firing off 16 individual queries.
         terms = []
+        address = self._address()
         for i in range(16, 33):
             subnet = '%s/%s' % (self._subnet(address, i), i)
             terms.append('(cn=%s)' % subnet)
-        filter = '(&(objectClass=subnet)(|%s))' % ''.join(terms)
-        result = conn.search_s(config, ldap.SCOPE_SUBTREE, filter)
+        query = '(&(objectClass=subnet)(|%s))' % ''.join(terms)
+        # For some reason it is necessary to add the CN=Sites prefix to the
+        # search base otherwise we get a reference.
+        base = 'CN=Sites,%s' % config
+        result = conn.search_s(base, ldap.SCOPE_SUBTREE, query)
         if result:
             sites = []
-            for res in result:
-                bits = int(res['cn'][0].split('/')[1])
-                site = res['siteObject'].split(',')[0][3:]
+            for dn,attrs in result:
+                bits = int(attrs['cn'][0].split('/')[1])
+                site = attrs['siteObject'][0].split(',')[0][3:]
                 sites.append((bits, site))
             sites.sort()
             self.m_site = sites[-1][1]
@@ -267,7 +276,7 @@ class ADClient(object):
                     break
         return output
 
-    def _srv_order_result(result):
+    def _srv_order_result(self, result):
         """Order an SRV query result on weight and priority."""
         if not result:
             return result
@@ -292,7 +301,7 @@ class ADClient(object):
         server = list[0]
         return server
 
-    def resolve_server_list(service, protocol='tcp', max=None):
+    def resolve_server_list(self, service, protocol='tcp', max=None):
         """Resolve a server list for a service.
 
         This function will return a list of servers for `service'. The list is
@@ -304,28 +313,43 @@ class ADClient(object):
           is used in a weighted shuffle that on average places servers with a
           higher priority earlier in the list.
         """
-        config = freeadi.config.get_config()
-        site = self.resolve_site()
+        site = self._resolve_site()
         domain = self.domain()
-        query = '_%s._%s.%s._sites.dc._msdcs.%s' % (service, protocol, site, domain)
-        answer = dns.resolver.query(query, 'SRV')
-        answer = [ r.priority, r.weight, r.target, r.port for r in result ]
-        result = _srv_order_list(answer)
+        if site is not None:
+            query = '_%s._%s.%s._sites.dc._msdcs.%s' % \
+                    (service, protocol, site, domain)
+            answer = dns.resolver.query(query, 'SRV')
+            answer = [ (r.priority, r.weight, r.target, r.port)
+                       for r in answer ]
+            answer = self._srv_order_result(answer)
+            result = [ (target.to_text(), port)
+                       for prio, weight, target, port in answer ]
+        else:
+            result = []
         query = '_%s._%s.%s' % (service, protocol, domain)
         answer = dns.resolver.query(query, 'SRV')
-        answer = [ r.priority, r.weight, r.target, r.port for r in result ]
-        answer = filter(lambda x: x in result, answer)
-        result += _srv_order_list(answer)
+        answer = [ (r.priority, r.weight, r.target, r.port) for r in answer ]
+        answer = self._srv_order_result(answer)
+        result += [ (target.to_text(), port)
+                    for prio, weight, target, port in answer
+                    if (target.to_text(), port) not in result ]
         return result
 
-    def domain(self, domain):
+    def domain(self):
         """Return the current domain."""
+        if not self.m_domain:
+            raise FreeADIError, 'Domain not set'
         return self.m_domain
 
     def set_domain(self, domain):
-        self.m_domain = domain
+        """Set the domain to `domain'."""
+        # Always keep the domain in upper case which is the convention for
+        # Kerberos realms. When we need a DNS domain name we convert it to
+        # lower case.
+        self.m_domain = domain.upper()
 
-    def netbios_name(self, w2kname):
+    def netbios_name(self):
+        """Return the NETBIOS name of the current domain."""
         pass
 
     def _krb5_library(self):
