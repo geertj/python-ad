@@ -6,10 +6,10 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from freeadi.util.singleton import Singleton
+from freeadi.util.singleton import singleton
 
 
-class MyClass(Singleton):
+class MyClass(object):
 
     def __init__(self, args, kwargs):
         self.args = args
@@ -28,19 +28,19 @@ class TestSingleton(object):
         MyClass.c_instance = None
 
     def test_simple(self):
-        ob1 = MyClass.instance()
-        ob2 = MyClass.instance()
+        ob1 = singleton(MyClass)
+        ob2 = singleton(MyClass)
         assert ob1 is ob2
 
     def test_args(self):
-        ob = MyClass.instance(10, 20)
+        ob = singleton(MyClass, 10, 20)
         assert ob.args == (10, 20)
 
     def test_kwargs(self):
-        ob = MyClass.instance(arg1=10, arg2=20)
+        ob = singleton(MyClass, arg1=10, arg2=20)
         assert ob.kwargs == { 'arg1': 10, 'arg2': 20  }
 
     def test_full_args(self):
-        ob = MyClass.instance(10, 20, arg1=30, arg2=40)
+        ob = singleton(MyClass, 10, 20, arg1=30, arg2=40)
         assert ob.args == (10, 20)
         assert ob.kwargs == { 'arg1': 30, 'arg2': 40  }
