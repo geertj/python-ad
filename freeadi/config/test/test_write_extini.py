@@ -9,20 +9,20 @@
 import py.test
 
 from freeadi.config.exception import ConfigWriteError
-from freeadi.config.write_krb5 import Krb5Writer
-from freeadi.config.parse_krb5 import Krb5Parser
+from freeadi.config.write_extini import ExtIniWriter
+from freeadi.config.parse_extini import ExtIniParser
 from freeadi.config.test.support import ConfigTest
 
 
-class TestWriteKrb5(ConfigTest):
-    """Test suite for Krb5Writer."""
+class TestWriteExtIni(ConfigTest):
+    """Test suite for ExtIniWriter."""
 
     def _test_roundtrip(self, conf):
-        writer = Krb5Writer()
+        writer = ExtIniWriter()
         fio = file(self.tempfile(),'w+')
         writer.write(conf, fio)
         fio.seek(0)
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fio)
         assert res == conf
 
@@ -48,7 +48,7 @@ class TestWriteKrb5(ConfigTest):
         self._test_roundtrip(conf)
 
     def _test_writer_raises_error(self, conf):
-        writer = Krb5Writer()
+        writer = ExtIniWriter()
         fout = file(self.tempfile(), 'w')
         py.test.raises(ConfigWriteError, writer.write, conf, fout)
 

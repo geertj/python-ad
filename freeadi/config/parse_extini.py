@@ -9,8 +9,12 @@
 from freeadi.config.parser import Parser
 
 
-class Krb5Parser(Parser):
-    """Parser for krb5.conf."""
+class ExtIniParser(Parser):
+    """Extended INI config file parser.
+    
+    The extended INI format has support for subsections and is used e.g. by
+    for the MIT Kerberos configuration file.
+    """
 
     states = ( ('rvalue', 'exclusive'), )
     tokens = ( 'LBRACKET', 'RBRACKET', 'LBRACE', 'RBRACE',

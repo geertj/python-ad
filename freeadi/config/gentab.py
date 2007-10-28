@@ -10,10 +10,10 @@
 # This script generates the PLY parser tables. Note: It needs to be run from
 # the directory holding the parsers!!
 
-from freeadi.config.parse_krb5 import Krb5Parser
+from freeadi.config.parse_extini import ExtIniParser
 from freeadi.config.parse_ldap import LdapParser
 
-parser = Krb5Parser()
+parser = ExtIniParser()
 parser._write_parsetab()
 
 parser = LdapParser()

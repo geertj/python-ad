@@ -9,12 +9,12 @@
 import py.test
 
 from freeadi.config.exception import ConfigParseError
-from freeadi.config.parse_krb5 import Krb5Parser
+from freeadi.config.parse_extini import ExtIniParser
 from freeadi.config.test.support import ConfigTest
 
 
-class TestParseKrb5(ConfigTest):
-    """Test suite for Krb5Parser."""
+class TestParseExtIni(ConfigTest):
+    """Test suite for ExtIniParser."""
 
     def test_simple_string(self):
         conf = """
@@ -22,7 +22,7 @@ class TestParseKrb5(ConfigTest):
             key1 = value1
             key2 = value2
             """
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(conf)
         assert 'section1' in res
         assert isinstance(res['section1'], dict)
@@ -40,7 +40,7 @@ class TestParseKrb5(ConfigTest):
             key2 = value2
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert 'section1' in res
         assert isinstance(res['section1'], dict)
@@ -59,7 +59,7 @@ class TestParseKrb5(ConfigTest):
             key2 = value2
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert 'section1' in res
         assert 'key1' in res['section1']
@@ -77,7 +77,7 @@ class TestParseKrb5(ConfigTest):
             key1 = value2
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert isinstance(res['section1']['key1'], list)
         assert res['section1']['key1'] == ['value1', 'value2']
@@ -91,7 +91,7 @@ class TestParseKrb5(ConfigTest):
             }
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert isinstance(res['section1']['key1'], dict)
         d = res['section1']['key1']
@@ -106,7 +106,7 @@ class TestParseKrb5(ConfigTest):
             key2 = value2
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert 'section1' in res
         assert 'key1' in res['section1']
@@ -122,7 +122,7 @@ class TestParseKrb5(ConfigTest):
             key1 = value2
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert isinstance(res['section1']['key1'], list)
         assert res['section1']['key1'] == ['value1', 'value2']
@@ -139,7 +139,7 @@ class TestParseKrb5(ConfigTest):
             }
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert isinstance(res['section1']['key1'], dict)
         assert res['section1']['key1'] == { 'key2': 'value2', 'key3': 'value3' }
@@ -150,7 +150,7 @@ class TestParseKrb5(ConfigTest):
             k*y = value
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         py.test.raises(ConfigParseError, parser.parse, fin)
 
     def test_lex_error_info(self):
@@ -159,7 +159,7 @@ class TestParseKrb5(ConfigTest):
             k*y = value
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         try:
             parser.parse(fin)
         except ConfigParseError, err:
@@ -178,7 +178,7 @@ class TestParseKrb5(ConfigTest):
             key = value
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         py.test.raises(ConfigParseError, parser.parse, fin)
 
     def test_syntax_error_info(self):
@@ -186,7 +186,7 @@ class TestParseKrb5(ConfigTest):
             key = value
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         try:
             parser.parse(fin)
         except ConfigParseError, err:
@@ -207,7 +207,7 @@ class TestParseKrb5(ConfigTest):
             key = value  # comment 2
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert res['section1']['key'] == 'value'
 
@@ -217,7 +217,7 @@ class TestParseKrb5(ConfigTest):
             key = value with spaces
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert res['section1']['key'] == 'value with spaces'
 
@@ -227,6 +227,6 @@ class TestParseKrb5(ConfigTest):
             key = value with spaces  # comment
             """
         fin = file(self.make_file(conf))
-        parser = Krb5Parser()
+        parser = ExtIniParser()
         res = parser.parse(fin)
         assert res['section1']['key'] == 'value with spaces'

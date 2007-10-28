@@ -6,13 +6,13 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from parse_krb5 import Krb5Parser
-from write_krb5 import Krb5Writer
+from parse_extini import ExtIniParser
+from write_extini import ExtIniWriter
 from config import Config
 
 
-class Krb5Config(Config):
-    """MIT krb5 configuration file access."""
+class ExtIniConfig(Config):
+    """Extended INI file configuration file."""
 
     def __init__(self):
-        super(Krb5Config, self).__init__(Krb5Parser, Krb5Writer)
+        super(ExtIniConfig, self).__init__(ExtIniParser, ExtIniWriter)

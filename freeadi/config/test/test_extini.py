@@ -6,12 +6,12 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from freeadi.config.krb5 import Krb5Config
+from freeadi.config.extini import ExtIniConfig
 from freeadi.config.test.support import ConfigTest
 
 
-class TestKrb5(ConfigTest):
-    """Test suite for Krb5Config."""
+class TestExtIni(ConfigTest):
+    """Test suite for ExtIniConfig."""
 
     def test_simple(self):
         conf = """
@@ -19,11 +19,11 @@ class TestKrb5(ConfigTest):
             key1 = value1
             """
         fname = self.make_file(conf)
-        config = Krb5Config()
+        config = ExtIniConfig()
         config.read(fname)
         fname = self.tempfile()
         config.write(fname)
-        config2 = Krb5Config()
+        config2 = ExtIniConfig()
         config2.read(fname)
         assert dict(config) == dict(config2)
 
@@ -38,7 +38,7 @@ class TestKrb5(ConfigTest):
             key2 = value2
             """
         fn2 = self.make_file(conf2)
-        config = Krb5Config()
+        config = ExtIniConfig()
         config.read(fn1)
         assert 'section1' in config
         assert 'key1' in config['section1']
