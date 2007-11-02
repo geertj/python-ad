@@ -7,7 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 
-def decompress_rfc1035(buffer, offset, _pointer=False):
+def decompress(buffer, offset, _pointer=False):
     """Decompress an RFC1035 (section 4.1.4) compressed string."""
     result = []
     while True:
@@ -24,7 +24,7 @@ def decompress_rfc1035(buffer, offset, _pointer=False):
                 raise ValueError, 'Premature end of message'
             ptr = ((tag & ~0xc0) << 8) + ord(buffer[offset])
             offset += 1
-            result.append(decompress_rfc1035(buffer, ptr, True)[0])
+            result.append(decompress(buffer, ptr, True)[0])
             break
         elif tag & 0xc0:
             raise ValueError, 'Illegal tag'
