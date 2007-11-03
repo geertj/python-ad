@@ -384,6 +384,34 @@ class TestDecoder(object):
         val = dec.read()
         assert val == 'x' * 0xffff
 
+    def test_read_multiple(self):
+        buf = '\x02\x01\x01\x02\x01\x02'
+        dec = asn1.Decoder()
+        dec.start(buf)
+        val = dec.read()
+        assert val == 1
+        val = dec.read()
+        assert val == 2
+        assert dec.eof()
+
+    def test_skip_primitive(self):
+        buf = '\x02\x01\x01\x02\x01\x02'
+        dec = asn1.Decoder()
+        dec.start(buf)
+        dec.skip()
+        val = dec.read()
+        assert val == 2
+        assert dec.eof()
+
+    def test_skip_constructed(self):
+        buf = '\x30\x06\x02\x01\x01\x02\x01\x02\x02\x01\x03'
+        dec = asn1.Decoder()
+        dec.start(buf)
+        dec.skip()
+        val = dec.read()
+        assert val == 3
+        assert dec.eof()
+ 
     def test_error_init(self):
         dec = asn1.Decoder()
         py.test.raises(asn1.Error, dec.peek)
@@ -456,4 +484,3 @@ class TestDecoder(object):
         dec = asn1.Decoder()
         dec.start(buf)
         py.test.raises(asn1.Error, dec.read)
-

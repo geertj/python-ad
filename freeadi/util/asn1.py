@@ -267,6 +267,21 @@ class Decoder(object):
         self.m_tag = None
         return value
 
+    def skip(self):
+        """Skip the current tag."""
+        if self.m_stack is None:
+            raise Error, 'No input selected. Call start() first.'
+        if self._end_of_input():
+            return
+        tag = self.peek()
+        length = self._read_length()
+        self._read_bytes(length)
+        self.m_tag = None
+
+    def eof(self):
+        """Return True if we are end of input."""
+        return self._end_of_input()
+
     def _decode_boolean(self, bytes):
         """Decode a boolean value."""
         if len(bytes) != 1:
