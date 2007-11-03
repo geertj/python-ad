@@ -104,7 +104,7 @@ k5_get_init_creds_keytab(PyObject *self, PyObject *args)
 }
 
 
-static PyMethodDef Krb5Methods[] = 
+static PyMethodDef k5_methods[] = 
 {
     { "get_init_creds_password",
             (PyCFunction) k5_get_init_creds_password, METH_VARARGS },
@@ -114,14 +114,14 @@ static PyMethodDef Krb5Methods[] =
 };
 
 void
-initkrb5(void)
+init_krb5(void)
 {
     PyObject *module, *dict;
 
     initialize_krb5_error_table();
 
-    module = Py_InitModule("krb5", Krb5Methods);
+    module = Py_InitModule("_krb5", k5_methods);
     dict = PyModule_GetDict(module);
-    k5_error = PyErr_NewException("freeadi.krb5.Krb5Error", NULL, NULL);
-    PyDict_SetItemString(dict, "Krb5Error", k5_error);
+    k5_error = PyErr_NewException("freeadi._krb5.Error", NULL, NULL);
+    PyDict_SetItemString(dict, "Error", k5_error);
 }
