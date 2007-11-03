@@ -6,6 +6,9 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
+import socket
+
+
 def dedent(self, s):
     """De-indents a multi-line string."""
     lines = s.splitlines()
@@ -16,3 +19,16 @@ def dedent(self, s):
     if lines and not lines[-1]:
         lines = lines[:-1]
     return '\n'.join(lines) + '\n'
+
+
+def hostname(self):
+    """Return the host name.
+
+    The host name is defined as the "short" host name. If the hostname as
+    returned by gethostname() includes a domain, the part until the first
+    period ('.') is returned.
+    """
+    hostname = socket.gethostname()
+    if '.' in hostname:
+        hostname = hostname.split('.')[0]
+    return hostname
