@@ -17,9 +17,9 @@ setup(
     author_email = 'geert@boskant.nl',
     url = 'http://www.boskant.nl/trac/freeadi',
 
-    packages = ['freeadi', 'freeadi.ad', 'freeadi.config',
-                'freeadi.nss', 'freeadi.system'],
-    ext_modules = [Extension('freeadi.ad.krb5', ['freeadi/ad/krb5.c'],
+    packages = ['freeadi', 'freeadi.core', 'freeadi.config',
+                'freeadi.protocol', 'freeadi.system', 'freeadi.util'],
+    ext_modules = [Extension('freeadi.core.krb5', ['freeadi/core/krb5.c'],
                              libraries=['krb5'])],
     data_files = { 'templates': 'templates/*.tmpl',
                    '/etc': ['config/freeadi.conf'] }
