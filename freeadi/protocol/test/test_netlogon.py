@@ -7,7 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 import py.test
-from freeadi.util import netlogon
+from freeadi.protocol import netlogon
 
 
 class TestNetlogon(object):

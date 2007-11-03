@@ -7,7 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 import py.test
-from freeadi.util import asn1
+from freeadi.protocol import asn1
 
 class TestEncoder(object):
     """Test suite for ASN1 Encoder."""

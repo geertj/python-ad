@@ -7,7 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 import py.test
-from freeadi.util import rfc1035
+from freeadi.protocol import rfc1035
 
 
 class TestRFC1035(object):

@@ -7,7 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 import py.test
-from freeadi.util import ldapfilter
+from freeadi.protocol import ldapfilter
 
 
 class TestLDAPFilterParser(object):

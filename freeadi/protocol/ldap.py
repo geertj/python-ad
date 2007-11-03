@@ -6,8 +6,8 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from freeadi.util import asn1
-from freeadi.util import ldapfilter
+from freeadi.protocol import asn1
+from freeadi.protocol import ldapfilter
 
 
 SCOPE_BASE = 0

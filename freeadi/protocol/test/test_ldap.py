@@ -6,7 +6,7 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from freeadi.util import ldap
+from freeadi.protocol import ldap
 
 
 class TestLDAP(object):

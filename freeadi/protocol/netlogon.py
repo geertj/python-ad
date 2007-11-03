@@ -6,7 +6,7 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from freeadi.util import rfc1035
+from freeadi.protocol import rfc1035
 
 
 class Error(Exception):
