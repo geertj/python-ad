@@ -6,15 +6,20 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
+import os
 
 # This script generates the PLY parser tables. Note: It needs to be run from
-# the directory holding the parsers!!
+# the top-level draco directory!
 
 from freeadi.config.parse_extini import ExtIniParser
 from freeadi.config.parse_ldap import LdapParser
+
+os.chdir('freeadi/config')
 
 parser = ExtIniParser()
 parser._write_parsetab()
 
 parser = LdapParser()
 parser._write_parsetab()
+
+os.chdir('../../')

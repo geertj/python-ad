@@ -6,7 +6,7 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from freeadi.config.parser import Parser
+from freeadi.util.parser import Parser
 
 
 class ExtIniParser(Parser):

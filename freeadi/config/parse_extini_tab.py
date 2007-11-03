@@ -25,13 +25,13 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S'",1,None,None,None),
-  ('input',1,'p_input','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',84),
-  ('input',2,'p_input','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',85),
-  ('section',2,'p_section','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',92),
-  ('section_head',3,'p_section_head','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',96),
-  ('section_body',1,'p_section_body','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',100),
-  ('section_body',2,'p_section_body','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',101),
-  ('assignment',3,'p_assignment','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',108),
-  ('assignment',3,'p_assignment','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',109),
-  ('subsection',3,'p_subsection','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',113),
+  ('input',1,'p_input','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',88),
+  ('input',2,'p_input','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',89),
+  ('section',2,'p_section','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',96),
+  ('section_head',3,'p_section_head','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',100),
+  ('section_body',1,'p_section_body','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',104),
+  ('section_body',2,'p_section_body','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',105),
+  ('assignment',3,'p_assignment','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',112),
+  ('assignment',3,'p_assignment','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',113),
+  ('subsection',3,'p_subsection','/home/geert/Projects/freeadi/freeadi/config/parse_extini.py',117),
 ]

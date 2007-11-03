@@ -10,8 +10,8 @@ import re
 import time
 import socket
 
+from freeadi.util.writer import Writer
 from freeadi.config.exception import ConfigWriteError
-from freeadi.config.writer import Writer
 from freeadi.config.parse_ldap import LdapParser
 
 
