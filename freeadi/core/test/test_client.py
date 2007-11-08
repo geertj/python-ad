@@ -6,15 +6,15 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
-from freeadi.test.base import FreeADITest
+from freeadi.test.base import BaseTest
 from freeadi.ad.client import ADClient
 
 
-class TestADClient(FreeADITest):
+class TestADClient(BaseTest):
     """Test suite for ADClient"""
 
     def test_simple(self):
-        if not self.online_enabled():
+        if not self.online():
             return
         self.acquire_admin_credentials()
         domain = self.config().get('test', 'domain')

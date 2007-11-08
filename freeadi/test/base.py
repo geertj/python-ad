@@ -14,7 +14,7 @@ import pexpect
 from ConfigParser import ConfigParser
 
 
-class FreeADITest(object):
+class BaseTest(object):
     """Base class for FreeADI tests."""
 
     def setup_class(cls):
@@ -55,9 +55,30 @@ class FreeADITest(object):
         self.c_tempfiles.append(name)
         return name
 
-    def online_enabled(self):
+    def online(self):
         config = self.config()
         return config.getboolean('test', 'online_tests')
+
+    def domain(self):
+        config = self.config()
+        domain = config.get('test', 'domain')
+        if domain is None:
+            raise ValueError, 'Test configuration variable `domain\' not set.'
+        return domain
+
+    def admin_account(self):
+        config = self.config()
+        account = config.get('test', 'admin_account')
+        if account is None:
+            raise ValueError, 'Test configuration variable `admin_account\' not set.'
+        return account
+
+    def admin_password(self):
+        config = self.config()
+        password = config.get('test', 'admin_password')
+        if password is None:
+            raise ValueError, 'Test configuration variable `admin_password\' not set.'
+        return password
 
     def acquire_credentials(self, domain, principal, password):
         template = """
