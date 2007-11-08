@@ -7,7 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 from freeadi.test.base import BaseTest
-from freeadi.ad.client import ADClient
+from freeadi.core.client import ADClient
 
 
 class TestADClient(BaseTest):
@@ -17,8 +17,7 @@ class TestADClient(BaseTest):
         if not self.online():
             return
         self.acquire_admin_credentials()
-        domain = self.config().get('test', 'domain')
-        print 'domain', domain
+        domain = self.domain()
         client = ADClient(domain)
         result = client.search('(objectClass=user)')
         assert len(result) > 1
