@@ -21,7 +21,7 @@ def dedent(self, s):
     return '\n'.join(lines) + '\n'
 
 
-def hostname(self):
+def hostname():
     """Return the host name.
 
     The host name is defined as the "short" host name. If the hostname as
