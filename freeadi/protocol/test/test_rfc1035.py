@@ -37,6 +37,10 @@ class TestRFC1035(object):
         s = '\x03foo\x03bar\x00\x03baz\xc0\x00'
         assert rfc1035.decompress(s, 9) == ('baz.foo.bar', 15)
 
+    def test_pointer_recursive(self):
+        s = '\x03foo\x00\x03bar\xc0\x00\x03baz\xc0\x05'
+        assert rfc1035.decompress(s, 11) == ('baz.bar.foo', 17)
+
     def test_multi_string(self):
         s = '\x03foo\x00\x03bar\x00'
         assert rfc1035.decompress(s, 0) == ('foo', 5)
@@ -62,8 +66,10 @@ class TestRFC1035(object):
         s = '\xc0\x03'
         py.test.raises(ValueError, rfc1035.decompress, s, 0)
 
-    def test_error_recursive_pointer(self):
+    def test_error_cyclic_pointer(self):
         s = '\xc0\x00'
+        py.test.raises(ValueError, rfc1035.decompress, s, 0)
+        s = '\x03foo\xc0\x06\x03bar\xc0\x0c\x03baz\xc0\x00'
         py.test.raises(ValueError, rfc1035.decompress, s, 0)
 
     def test_error_illegal_tags(self):

@@ -10,6 +10,8 @@
 def decompress(buffer, offset, _pointer=False):
     """Decompress an RFC1035 (section 4.1.4) compressed string."""
     result = []
+    if _pointer == False:
+        _pointer = []
     while True:
         if offset >= len(buffer):
             raise ValueError, 'Premature end of message'
@@ -18,13 +20,14 @@ def decompress(buffer, offset, _pointer=False):
         if tag == 0:
             break
         elif tag & 0xc0 == 0xc0:
-            if _pointer:
-                raise ValueError, 'Recursive pointer'
             if offset >= len(buffer):
                 raise ValueError, 'Premature end of message'
             ptr = ((tag & ~0xc0) << 8) + ord(buffer[offset])
             offset += 1
-            result.append(decompress(buffer, ptr, True)[0])
+            if ptr in _pointer:
+                raise ValueError, 'Cyclic pointer'
+            _pointer.append(ptr)
+            result.append(decompress(buffer, ptr, _pointer)[0])
             break
         elif tag & 0xc0:
             raise ValueError, 'Illegal tag'
