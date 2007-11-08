@@ -6,10 +6,12 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
+import os.path
+from freeadi.test.base import BaseTest
 from freeadi.protocol import ldap
 
 
-class TestLDAP(object):
+class TestLDAP(BaseTest):
     """Test suite for freeadi.util.ldap."""
 
     def test_encode_real_search_request(self):
@@ -17,14 +19,18 @@ class TestLDAP(object):
         filter = '(&(DnsDomain=FREEADI.ORG)(Host=magellan)(NtVer=\\06\\00\\00\\00))'
         req = client.create_search_request('', filter, ('NetLogon',),
                                           scope=ldap.SCOPE_BASE, msgid=4)
-        fin = file('searchrequest.bin')
+        fname = os.path.join(self.basedir(), 'freeadi/protocol/test',
+                             'searchrequest.bin')
+        fin = file(fname)
         buf = fin.read()
         fin.close()
         assert req == buf
 
     def test_decode_real_search_reply(self):
         client = ldap.Client()
-        fin = file('searchresult.bin')
+        fname = os.path.join(self.basedir(), 'freeadi/protocol/test',
+                             'searchresult.bin')
+        fin = file(fname)
         buf = fin.read()
         fin.close()
         reply = client.parse_message_header(buf)
@@ -34,7 +40,9 @@ class TestLDAP(object):
         msgid, dn, attrs = reply[0]
         assert msgid == 4
         assert dn == ''
-        fin = file('netlogon.bin')
+        fname = os.path.join(self.basedir(), 'freeadi/protocol/test',
+                             'netlogon.bin')
+        fin = file(fname)
         netlogon = fin.read()
         fin.close()
         assert attrs == { 'netlogon': [netlogon] }

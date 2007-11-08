@@ -7,6 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 import os
+import os.path
 import sys
 import tempfile
 import pexpect
@@ -22,6 +23,7 @@ class BaseTest(object):
         fname = os.environ['FREEADI_TEST_CONFIG']
         config.read(fname)
         cls.c_config = config
+        cls.c_basedir = os.path.dirname(fname)
 
     def setup_method(cls, method):
         cls.c_tempfiles = []
@@ -54,6 +56,9 @@ class BaseTest(object):
         os.close(fd)
         self.c_tempfiles.append(name)
         return name
+
+    def basedir(self):
+        return self.c_basedir
 
     def online(self):
         config = self.config()

@@ -6,6 +6,7 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
+import os.path
 import py.test
 import dns.resolver
 from freeadi.test.base import BaseTest
@@ -16,7 +17,9 @@ class TestNetlogon(BaseTest):
     """Test suite for netlogon parser."""
 
     def test_real_packet(self):
-        fin = file('netlogon.bin')
+        fname = os.path.join(self.basedir(), 'freeadi/protocol/test',
+                             'netlogon.bin')
+        fin = file(fname)
         buf = fin.read()
         fin.close()
         dec = netlogon.Decoder()
