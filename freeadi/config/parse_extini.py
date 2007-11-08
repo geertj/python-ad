@@ -7,6 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 from freeadi.util.parser import Parser
+from freeadi.config.exception import ConfigParseError
 
 
 class ExtIniParser(Parser):
@@ -15,6 +16,8 @@ class ExtIniParser(Parser):
     The extended INI format has support for subsections and is used e.g. by
     for the MIT Kerberos configuration file.
     """
+
+    exception = ConfigParseError
 
     states = ( ('rvalue', 'exclusive'), )
     tokens = ( 'LBRACKET', 'RBRACKET', 'LBRACE', 'RBRACE',

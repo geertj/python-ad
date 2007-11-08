@@ -7,10 +7,13 @@
 # "AUTHORS" for a complete overview.
 
 from freeadi.util.parser import Parser
+from freeadi.config.exception import ConfigParseError
 
 
 class LdapParser(Parser):
     """Parser for ldap.conf (nss_ldap and OpenLDAP configuration files)."""
+
+    exception = ConfigParseError
 
     states = ( ('rhs', 'inclusive'), )
     tokens = ( 'WS', 'COMMENT', 'KEY', 'VALUE', 'EOL' )

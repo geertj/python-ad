@@ -161,7 +161,7 @@ class TestParseExtIni(ConfigTest):
         fin = file(self.make_file(conf))
         parser = ExtIniParser()
         try:
-            parser.parse(fin)
+            parser.parse(fin, fname='test')
         except ConfigParseError, err:
             err = err
         assert hasattr(err, 'fname')
@@ -188,7 +188,7 @@ class TestParseExtIni(ConfigTest):
         fin = file(self.make_file(conf))
         parser = ExtIniParser()
         try:
-            parser.parse(fin)
+            parser.parse(fin, fname='test')
         except ConfigParseError, err:
             err = err
         assert hasattr(err, 'fname')

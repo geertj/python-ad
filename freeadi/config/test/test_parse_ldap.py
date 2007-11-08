@@ -67,7 +67,7 @@ class TestLdapParser(ConfigTest):
         fin = file(self.make_file(conf))
         parser = LdapParser()
         try:
-            parser.parse(fin)
+            parser.parse(fin, fname='test')
         except ConfigParseError, err:
             err = err
         assert hasattr(err, 'fname')
@@ -94,7 +94,7 @@ class TestLdapParser(ConfigTest):
         fin = file(self.make_file(conf))
         parser = LdapParser()
         try:
-            parser.parse(fin)
+            parser.parse(fin, fname='test')
         except ConfigParseError, err:
             err = err
         assert hasattr(err, 'fname')
