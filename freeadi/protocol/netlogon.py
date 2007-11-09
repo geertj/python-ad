@@ -139,8 +139,9 @@ class Client(object):
 
     def query(self, addr, domain):
         """Add the Netlogon query to `addr' for `domain'."""
-        addr = (socket.gethostbyname(addr[0]), addr[1])
-        self.m_queries[addr] = [domain, None]
+        hostname, port = addr
+        addr = (socket.gethostbyname(hostname), port)
+        self.m_queries[addr] = [hostname, port, domain, None]
 
     def call(self, timeout=None, retries=None):
         """Wait for results for `timeout' seconds."""
@@ -177,9 +178,9 @@ class Client(object):
     def _send_all_requests(self):
         """Send requests to all hosts."""
         for addr in self.m_queries:
-            domain = self.m_queries[addr][0]
+            domain = self.m_queries[addr][2]
             msgid = self._create_message_id()
-            self.m_queries[addr][1] = msgid
+            self.m_queries[addr][3] = msgid
             packet = self._create_netlogon_query(domain, msgid)
             self.m_socket.sendto(packet, 0, addr)
 
@@ -214,7 +215,7 @@ class Client(object):
                     else:
                         raise Error, str(err)  # unrecoverable
                 try:
-                    domain, msgid = self.m_queries[addr]
+                    hostname, port, domain, msgid = self.m_queries[addr]
                 except KeyError:
                     continue  # someone sent us an erroneous datagram?
                 try:
@@ -230,6 +231,9 @@ class Client(object):
                     continue
                 if not reply:
                     continue
+                reply.orig_hostname = hostname
+                reply.port = port
+                reply.address = addr[0]
                 timing = time.time() - begin
                 reply.timing = timing
                 replies.append(reply)
