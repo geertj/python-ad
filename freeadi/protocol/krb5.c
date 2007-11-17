@@ -114,14 +114,14 @@ static PyMethodDef k5_methods[] =
 };
 
 void
-init_krb5(void)
+initkrb5(void)
 {
     PyObject *module, *dict;
 
     initialize_krb5_error_table();
 
-    module = Py_InitModule("_krb5", k5_methods);
+    module = Py_InitModule("krb5", k5_methods);
     dict = PyModule_GetDict(module);
-    k5_error = PyErr_NewException("freeadi._krb5.Error", NULL, NULL);
+    k5_error = PyErr_NewException("freeadi.protocol.krb5.Error", NULL, NULL);
     PyDict_SetItemString(dict, "Error", k5_error);
 }
