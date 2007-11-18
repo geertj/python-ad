@@ -10,22 +10,40 @@
 
 #                   WARNING !!! WARNING !!! WARNING !!!
 #
-# Setting online_tests to 1 will perform tests on a live Active Directory
-# domain. It will create and remove objects, set passwords, and perform other
-# actions. Although the tests are written such that they try not to impact
-# data that is currently held in the domain, there are no guarantees that any
-# of your current data will survive the test. In particular, data may be
-# modified, deleted or otherwise impacted so that it becomes unusable. NEVER
-# ENABLE THIS OPTION ON A PRODUCTION DOMAIN. The recommended way to use online
-# tests is to use them on a virtual infrastructure consisting of one or more
-# domain controllers running in virtual hosts that share ahost-only network
-# with the current system. In this case the system must have an IP address on
-# the host-only network and /etc/resolv.conf must point to a nameserver on one
-# of the domain controllers. Using snapshots, a well-known state may be
-# preserved for future tests.
+# FreeADI has support for "intrusive tests". These tests require elevated
+# privileges on the current system or in the directory, and may change
+# system configurations and update or delete data.
 #
-# Set to 1 to enable online tests, 0 to disable.
-online_tests = 0
+# All intrusive tests are disabled by default. They can be enabled by
+# settings the following variables to "1" and providing the proper password
+# in this configuration file.
+#
+#  - administrator_tests:  Controls tests that require AD administrator access.
+#  - online_tests:    	   Enables tests that access or modify data in Active
+#                          Directory. Depending on the setting of administrator_tests
+#                          is disabled, these tests will or will not modify data.
+#  - root_tests:           Controls tests that require root access.
+#  - firewall_tests:       Controls tests that change the firewall configuration of
+#  		           the local system to test certain aspects (mostly
+#  		           error conditions) of protocol clients implemented by
+#  		           FreeADI.
+#
+# Intrusive tests should be in an environment that is not production critical.
+# A good candidate for such an environment would be a set of virtualised host
+# running on a developer workstations which are connected to a host-only
+# network.
+#
+# Intrusive tests are written such that after running a set of tests the system
+# will be in a state that allows running the tests again, and so on.  In
+# particular no restore from backup (or restore to snapshot in a virtual
+# environment) is required after running the tests. It is not guaranteed
+# however that after a running a set of tests the system will be in the same
+# state as it was before the tests. This is the reason that intrusive tests
+# should never be run on a production environment.
+
+# Set to 1 to enable tests that require AD administrator access, 0 to
+# disable.
+administrator_tests = 0
 
 # The domain on which to perform the tests
 domain = freeadi.org
@@ -34,4 +52,20 @@ domain = freeadi.org
 admin_account = Administrator
 
 # The administrator password
-admin_password = "<password>"
+admin_password = <password>
+
+# Set to 1 to enable tests that access or modify data in AD, 0 to disable.
+online_tests = 0
+
+# Set to 1 to enable tests that require local root access, 0 to disable.
+root_tests = 0
+
+# The root account
+root_account = root
+
+# The password to the root account
+root_password = <password>
+
+# Set to 1 to enable tests that require modification of the firewall on the
+# current system, 0 to disable. See the warning above
+firewall_tests = 0

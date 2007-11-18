@@ -12,12 +12,3 @@ from freeadi.core.client import ADClient
 
 class TestADClient(BaseTest):
     """Test suite for ADClient"""
-
-    def test_simple(self):
-        if not self.online():
-            return
-        self.acquire_admin_credentials()
-        domain = self.domain()
-        client = ADClient(domain)
-        result = client.search('(objectClass=user)')
-        assert len(result) > 1

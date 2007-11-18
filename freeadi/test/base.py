@@ -11,6 +11,7 @@ import os.path
 import sys
 import tempfile
 import pexpect
+import logging
 
 from ConfigParser import ConfigParser
 
@@ -24,6 +25,13 @@ class BaseTest(object):
         config.read(fname)
         cls.c_config = config
         cls.c_basedir = os.path.dirname(fname)
+        logger = logging.getLogger('freeadi')
+        handler = logging.StreamHandler()
+        format = '%(levelname)s [%(name)s] %(message)s'
+        formatter = logging.Formatter(format)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
 
     def setup_method(cls, method):
         cls.c_tempfiles = []
@@ -60,51 +68,87 @@ class BaseTest(object):
     def basedir(self):
         return self.c_basedir
 
-    def online(self):
+    def administrator_tests_allowed(self):
         config = self.config()
-        return config.getboolean('test', 'online_tests')
+        return config.getboolean('test', 'administrator_tests')
 
     def domain(self):
+        if not self.online_tests_allowed():
+            raise RuntimeError, 'Online tests not allowed by configuration.'
         config = self.config()
         domain = config.get('test', 'domain')
         if domain is None:
-            raise ValueError, 'Test configuration variable `domain\' not set.'
+            raise RuntimeError, 'Test configuration variable `domain\' not set.'
         return domain
 
     def admin_account(self):
+        if not self.online_tests_allowed():
+            raise RuntimeError, 'Online tests not allowed by configuration.'
         config = self.config()
         account = config.get('test', 'admin_account')
         if account is None:
-            raise ValueError, 'Test configuration variable `admin_account\' not set.'
+            raise RuntimeError, 'Test configuration variable `admin_account\' not set.'
         return account
 
     def admin_password(self):
+        if not self.online_tests_allowed():
+            raise RuntimeError, 'Online tests not allowed by configuration.'
         config = self.config()
         password = config.get('test', 'admin_password')
         if password is None:
-            raise ValueError, 'Test configuration variable `admin_password\' not set.'
+            raise RuntimeError, 'Test configuration variable `admin_password\' not set.'
         return password
 
-    def acquire_credentials(self, domain, principal, password):
-        template = """
-            [libdefaults]
-            default_realm = %s
-            default_tgs_enctypes = rc4-hmac
-            default_tkt_enctypes = rc4-hmac
-            dns_lookup_kdc = true
-            """
-        krb5conf = self.tempfile(template % domain.upper())
-        os.environ['KRB5_CONFIG'] = krb5conf
-        krb5ccname = self.tempfile()
-        os.environ['KRB5CCNAME'] = krb5ccname
-        kinit = pexpect.spawn('kinit %s' % principal)
-        kinit.expect('.*:')
-        kinit.sendline(password)
-        kinit.expect(pexpect.EOF)
-
-    def acquire_admin_credentials(self):
+    def online_tests_allowed(self):
         config = self.config()
-        domain = config.get('test', 'domain')
-        admin = config.get('test', 'admin_account')
-        passwd = config.get('test', 'admin_password')
-        self.acquire_credentials(domain, admin, passwd)
+        return config.getboolean('test', 'online_tests')
+
+    def root_tests_allowed(self):
+        config = self.config()
+        return config.getboolean('test', 'root_tests')
+
+    def root_account(self):
+        if not self.root_tests_allowed():
+            raise RuntimeError, 'Root tests are not allowed by configuration.'
+        config = self.config()
+        account = config.get('test', 'root_account')
+        if account is None:
+            raise RuntimeError, 'Test configuration variable `root_account\' not set.'
+        return account
+
+    def root_password(self):
+        if not self.root_tests_allowed():
+            raise RuntimeError, 'Root tests are not allowed by configuration.'
+        config = self.config()
+        password = config.get('test', 'root_password')
+        if password is None:
+            raise RuntimeError, 'Test configuration variable `root_password\' not set.'
+        return password
+
+    def execute_as_root(self, command):
+        if not self.root_tests_allowed():
+            raise RuntimeError, 'Root tests are not allowed by configuration.'
+        child = pexpect.spawn('su -c "%s" %s' % (command, self.root_account()))
+        child.expect('.*:')
+        child.sendline(self.root_password())
+        child.expect(pexpect.EOF)
+        assert not child.isalive()
+        if child.exitstatus != 0:
+            m = 'Root command exited with status %s' % child.exitstatus
+            raise RuntimeError, m
+        return child.before
+
+    def firewall_tests_allowed(self):
+        config = self.config()
+        return config.getboolean('test', 'firewall_tests')
+
+    def iptables_supported(self):
+        try:
+            output = self.execute_as_root('iptables -L -n')
+        except RuntimeError:
+            return False
+        try:
+            output = self.execute_as_root('conntrack -L')
+        except RuntimeError:
+            return False
+        return True
