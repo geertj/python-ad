@@ -32,6 +32,7 @@ class BaseTest(object):
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
+        cls.c_iptables = None
 
     def setup_method(cls, method):
         cls.c_tempfiles = []
@@ -143,12 +144,36 @@ class BaseTest(object):
         return config.getboolean('test', 'firewall_tests')
 
     def iptables_supported(self):
-        try:
-            output = self.execute_as_root('iptables -L -n')
-        except RuntimeError:
-            return False
-        try:
-            output = self.execute_as_root('conntrack -L')
-        except RuntimeError:
-            return False
-        return True
+        if self.c_iptables is None:
+            try:
+                self.execute_as_root('iptables -L -n')
+                self.execute_as_root('conntrack -L')
+            except RuntimeError:
+                self.c_iptables = False
+            else:
+                self.c_iptables = True
+        return self.c_iptables
+
+    def remove_network_blocks(self):
+        if not self.root_tests_allowed() or not \
+                self.firewall_tests_allowed():
+            raise RuntimeError, 'Action not allowed by configuration.'
+        if not self.iptables_supported():
+            raise RuntimeError, 'Iptables not supported on this system.'
+        self.execute_as_root('iptables -t nat -F')
+        self.execute_as_root('conntrack -F')
+
+    def block_outgoing_traffic(self, protocol, port):
+        """Block outgoing traffic of type `protocol' with destination `port'."""
+        # Unfortunately we cannot simply insert a rule like this: -A OUTPUT -m
+        # udp -p udp--dport 389 -j DROP.  If we do this the kernel code will
+        # be smart and return an error when sending trying to connect or send
+        # a datagram. In order realistically emulate a network failure we
+        # instead redirect packets the discard port on localhost. This
+        # complicates stopping the emulated failure though: merely flushling
+        # the nat table is not enough. We also need to flush the conntrack
+        # table that keeps state for NAT'ed connections even after the rule
+        # that caused the NAT in the first place has been removed.
+        self.execute_as_root('iptables -t nat -A OUTPUT -m %s -p %s --dport %d'
+                             ' -j DNAT --to-destination 127.0.0.1:9' %
+                             (protocol, protocol, port))
