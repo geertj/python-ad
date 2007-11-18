@@ -168,7 +168,7 @@ class Client(object):
     This client can make multiple simultaneous netlogon calls.
     """
 
-    _timeout = 3
+    _timeout = 2
     _retries = 3
     _bufsize = 8192
 
@@ -176,6 +176,7 @@ class Client(object):
         """Constructor."""
         self.m_socket = None
         self.m_queries = {}
+        self.m_offset = None
 
     def query(self, addr, domain):
         """Add the Netlogon query to `addr' for `domain'."""
@@ -213,7 +214,13 @@ class Client(object):
 
     def _create_message_id(self):
         """Create a new sequence number."""
-        return random.randint(0, 2**31-1)
+        if self.m_offset is None:
+            self.m_offset = random.randint(0, 2**31-1)
+        msgid = self.m_offset
+        self.m_offset += 1
+        if self.m_offset == 2**31-1:
+            self.m_offset = 0
+        return msgid
 
     def _send_all_requests(self):
         """Send requests to all hosts."""
@@ -236,7 +243,14 @@ class Client(object):
             if timeleft <= 0:
                 break
             fds = [ self.m_socket.fileno() ]
-            result = select.select(fds, [], [], timeleft)
+            try:
+                result = select.select(fds, [], [], timeleft)
+            except select.error, err:
+                error = err.args[0]
+                if error == errno.EINTR:
+                    continue  # interrupted by signal
+                else:
+                    raise Error, str(err)  # unrecoverable
             if not result[0]:
                 continue  # timeout
             assert fds == result[0]
