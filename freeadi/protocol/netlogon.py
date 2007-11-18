@@ -45,8 +45,8 @@ class Decoder(object):
 
     def start(self, buffer):
         """Start decoding `buffer'."""
-        self.m_input = buffer
-        self.m_offset = 0
+        self._set_buffer(buffer)
+        self._set_offset(0)
 
     def parse(self):
         """Parse a netlogon reply."""
@@ -67,14 +67,32 @@ class Decoder(object):
                      netbios_hostname=netbios_hostname, user=user,
                      client_site=client_site, server_site=server_site)
 
-    def _decode_rfc1035(self):
+    def _decode_rfc1035(self, _pointer=False):
         """Decompress an RFC1035 (section 4.1.4) compressed string."""
-        try:
-            value, offset = rfc1035.decompress(self.m_input, self.m_offset)
-        except ValueError, err:
-            raise Error, err.message
-        self.m_offset = offset
-        return value
+        result = []
+        if _pointer == False:
+            _pointer = []
+        while True:
+            tag = ord(self._read_byte())
+            if tag == 0:
+                break
+            elif tag & 0xc0 == 0xc0:
+                byte = self._read_byte()
+                ptr = ((tag & ~0xc0) << 8) + ord(byte)
+                if ptr in _pointer:
+                    raise Error, 'Cyclic pointer'
+                _pointer.append(ptr)
+                saved, self.m_offset = self.m_offset, ptr
+                result.append(self._decode_rfc1035(_pointer))
+                self.m_offset = saved
+                break
+            elif tag & 0xc0:
+                raise Error, 'Illegal tag'
+            else:
+                s = self._read_bytes(tag)
+                result.append(s)
+        result = '.'.join(result)
+        return result
 
     def _try_convert_int(self, value):
         """Try to convert `value' to an integer."""
@@ -94,6 +112,26 @@ class Decoder(object):
         value = self._try_convert_int(value)
         return value
 
+    def _offset(self):
+        """Return the current offset."""
+        return self.m_offset
+
+    def _set_offset(self, offset):
+        """Set the current decoding offset."""
+        if offset < 0:
+            raise Error, 'Offset must be positive.'
+        self.m_offset = offset
+
+    def _buffer(self):
+        """Return the current buffer."""
+        return self.m_buffer
+
+    def _set_buffer(self, buffer):
+        """Set the current buffer."""
+        if not isinstance(buffer, str):
+            raise Error, 'Buffer must be plain string.'
+        self.m_buffer = buffer
+
     def _read_byte(self, offset=None):
         """Read a single byte from the input."""
         if offset is None:
@@ -101,7 +139,9 @@ class Decoder(object):
             update_offset = True
         else:
             update_offset = False
-        byte = self.m_input[offset]
+        if offset >= len(self.m_buffer):
+            raise Error, 'Premature end of input.'
+        byte = self.m_buffer[offset]
         if update_offset:
             self.m_offset += 1
         return byte
@@ -114,7 +154,7 @@ class Decoder(object):
             update_offset = True
         else:
             update_offset = False
-        bytes = self.m_input[offset:offset+count]
+        bytes = self.m_buffer[offset:offset+count]
         if len(bytes) != count:
             raise Error, 'Premature end of input.'
         if update_offset:
@@ -232,8 +272,7 @@ class Client(object):
                 if not reply:
                     continue
                 reply.orig_hostname = hostname
-                reply.port = port
-                reply.address = addr[0]
+                reply.address = addr
                 timing = time.time() - begin
                 reply.timing = timing
                 replies.append(reply)
