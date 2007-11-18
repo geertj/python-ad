@@ -7,6 +7,7 @@
 # "AUTHORS" for a complete overview.
 
 import os.path
+import signal
 import py.test
 import dns.resolver
 from freeadi.test.base import BaseTest
@@ -203,7 +204,7 @@ class TestClient(BaseTest):
     """Test suite for netlogon.Client."""
 
     def test_online(self):
-        if not self.online():
+        if not self.online_tests_allowed():
             return
         domain = self.domain()
         client = netlogon.Client()
@@ -228,3 +229,42 @@ class TestClient(BaseTest):
             assert len(res.client_site) > 0
             assert len(res.server_site) > 0
             assert res.timing >= 0.0
+
+    def _flush_firewall(self, signo, frame):
+        self.execute_as_root('iptables -t nat -F')
+        self.execute_as_root('conntrack -F')
+
+    def test_retries(self):
+        if not self.administrator_tests_allowed() \
+                or not self.online_tests_allowed() \
+                or not self.root_tests_allowed() \
+                or not self.firewall_tests_allowed \
+                or not self.iptables_supported():
+            return
+        domain = self.domain()
+        client = netlogon.Client()
+        answer = dns.resolver.query('_ldap._tcp.%s' % domain, 'SRV')
+        addrs = [ (ans.target.to_text(), ans.port) for ans in answer ]
+        for addr in addrs:
+            client.query(addr, domain)
+        # Block CLDAP traffic and enable it after 3 seconds. Because
+        # NetlogonClient is retrying, it should be succesfull.
+        #
+        # Unfortunately we cannot simply insert a rule like this: -A OUTPUT -m
+        # udp -p udp--dport 389 -j DROP.  If we do this the kernel code will
+        # be smart and return an error on our sendmsg() system call.  To
+        # realistically emulate a network failure we instead redirect CLDAP
+        # packets the discard port on localhost. This complicates stopping the
+        # emulated failure though: merely flushling the nat table is not
+        # enough. We also need to flush the conntrack table that keeps state
+        # for NAT'ed connections even after the rule that caused the NAT in
+        # the first place has been removed.
+        self.execute_as_root('iptables -t nat -F')
+        self.execute_as_root('conntrack -F')
+        self.execute_as_root('iptables -t nat -A OUTPUT -m udp -p udp --dport'
+                             ' 389 -j DNAT --to-destination 127.0.0.1:9')
+        signal.signal(signal.SIGALRM, self._flush_firewall)
+        signal.alarm(3)
+        result = client.call()
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
+        assert len(result) == len(addrs)  # assume retries are succesful
