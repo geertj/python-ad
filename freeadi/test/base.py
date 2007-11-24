@@ -66,10 +66,12 @@ class BaseTest(object):
             lines = lines[:-1]
         return '\n'.join(lines) + '\n'
 
-    def tempfile(self, contents=None):
+    def tempfile(self, contents=None, remove=False):
         fd, name = tempfile.mkstemp()
         if contents:
             os.write(fd, self._dedent(contents))
+        elif remove:
+            os.remove(name)
         os.close(fd)
         self.c_tempfiles.append(name)
         return name
