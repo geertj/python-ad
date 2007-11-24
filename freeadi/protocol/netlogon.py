@@ -13,7 +13,7 @@ import select
 import random
 
 from freeadi.util import misc
-from freeadi.protocol import rfc1035, asn1, ldap
+from freeadi.protocol import asn1, ldap
 
 
 SERVER_PDC = 0x1
