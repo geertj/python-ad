@@ -12,6 +12,7 @@ import sys
 import tempfile
 import pexpect
 import logging
+import py.test
 
 from ConfigParser import ConfigParser
 
@@ -79,66 +80,65 @@ class BaseTest(object):
     def basedir(self):
         return self.c_basedir
 
-    def administrator_tests_allowed(self):
+    def require(self, ad=False, root=False, firewall=False, admin=False,
+                ad_write=False):
         config = self.config()
-        return config.getboolean('test', 'administrator_tests')
+        if ad and not config.getboolean('test', 'ad_tests'):
+            py.test.skip('test disabled by configuration')
+            if not config.get('test', 'domain'):
+                py.test.skip('ad tests enabled but no domain given')
+        if root:
+            if not config.getboolean('test', 'root_tests'):
+                py.test.skip('test disabled by configuration')
+            if not config.get('test', 'root_account') or \
+                    not config.get('test', 'root_password'):
+                py.test.skip('root tests enabled but no username/pw given')
+        if firewall:
+            if not config.getboolean('test', 'firewall_tests'):
+                py.test.skip('test disabled by configuration')
+            if not self._iptables_supported():
+                py.test.skip('iptables/conntrack not available')
+        if admin:
+            if not config.getboolean('test', 'admin_tests'):
+                py.test.skip('test disabled by configuration')
+            if not config.get('test', 'admin_account') or \
+                    not config.get('test', 'admin_password'):
+                py.test.skip('admin tests enabled but no username/pw given')
+        if ad_write and not config.getboolean('test', 'ad_write_tests'):
+            py.test.skip('test disabled by configuration')
 
     def domain(self):
-        if not self.online_tests_allowed():
-            raise Error, 'Online tests not allowed by configuration.'
+        self.require(ad=True)
         config = self.config()
         domain = config.get('test', 'domain')
-        if domain is None:
-            raise Error, 'Test configuration variable `domain\' not set.'
         return domain
 
-    def admin_account(self):
-        if not self.online_tests_allowed():
-            raise Error, 'Online tests not allowed by configuration.'
-        config = self.config()
-        account = config.get('test', 'admin_account')
-        if account is None:
-            raise Error, 'Test configuration variable `admin_account\' not set.'
-        return account
-
-    def admin_password(self):
-        if not self.online_tests_allowed():
-            raise Error, 'Online tests not allowed by configuration.'
-        config = self.config()
-        password = config.get('test', 'admin_password')
-        if password is None:
-            raise Error, 'Test configuration variable `admin_password\' not set.'
-        return password
-
-    def online_tests_allowed(self):
-        config = self.config()
-        return config.getboolean('test', 'online_tests')
-
-    def root_tests_allowed(self):
-        config = self.config()
-        return config.getboolean('test', 'root_tests')
-
     def root_account(self):
-        if not self.root_tests_allowed():
-            raise Error, 'Root tests are not allowed by configuration.'
+        self.require(root=True)
         config = self.config()
         account = config.get('test', 'root_account')
-        if account is None:
-            raise Error, 'Test configuration variable `root_account\' not set.'
         return account
 
     def root_password(self):
-        if not self.root_tests_allowed():
-            raise Error, 'Root tests are not allowed by configuration.'
+        self.require(root=True)
         config = self.config()
         password = config.get('test', 'root_password')
-        if password is None:
-            raise Error, 'Test configuration variable `root_password\' not set.'
+        return password
+
+    def admin_account(self):
+        self.require(admin=True)
+        config = self.config()
+        account = config.get('test', 'admin_account')
+        return account
+
+    def admin_password(self):
+        self.require(admin=True)
+        config = self.config()
+        password = config.get('test', 'admin_password')
         return password
 
     def execute_as_root(self, command):
-        if not self.root_tests_allowed():
-            raise Error, 'Root tests are not allowed by configuration.'
+        self.require(root=True)
         child = pexpect.spawn('su -c "%s" %s' % (command, self.root_account()))
         child.expect('.*:')
         child.sendline(self.root_password())
@@ -149,11 +149,7 @@ class BaseTest(object):
             raise Error, m
         return child.before
 
-    def firewall_tests_allowed(self):
-        config = self.config()
-        return config.getboolean('test', 'firewall_tests')
-
-    def iptables_supported(self):
+    def _iptables_supported(self):
         if self.c_iptables is None:
             try:
                 self.execute_as_root('iptables -L -n')
@@ -165,16 +161,13 @@ class BaseTest(object):
         return self.c_iptables
 
     def remove_network_blocks(self):
-        if not self.root_tests_allowed() or not \
-                self.firewall_tests_allowed():
-            raise Error, 'Action not allowed by configuration.'
-        if not self.iptables_supported():
-            raise Error, 'Iptables not supported on this system.'
+        self.require(root=True, firewall=True)
         self.execute_as_root('iptables -t nat -F')
         self.execute_as_root('conntrack -F')
 
     def block_outgoing_traffic(self, protocol, port):
         """Block outgoing traffic of type `protocol' with destination `port'."""
+        self.require(root=True, firewall=True)
         # Unfortunately we cannot simply insert a rule like this: -A OUTPUT -m
         # udp -p udp--dport 389 -j DROP.  If we do this the kernel code will
         # be smart and return an error when sending trying to connect or send

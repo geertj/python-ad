@@ -19,9 +19,7 @@ class TestCreds(BaseTest):
     """Test suite for freeadi.core.creds."""
 
     def test_acquire_password(self):
-        if not self.online_tests_allowed() or not \
-                self.administrator_tests_allowed():
-            return
+        self.require(ad=True, admin=True)
         domain = self.domain()
         creds = ADCreds(domain)
         principal = self.admin_account()
@@ -34,9 +32,7 @@ class TestCreds(BaseTest):
         assert child.expect([pattern]) == 0
 
     def test_acquire_keytab(self):
-        if not self.online_tests_allowed() or not \
-                self.administrator_tests_allowed():
-            return
+        self.require(ad=True, admin=True)
         domain = self.domain()
         creds = ADCreds(domain)
         principal = self.admin_account()
@@ -70,9 +66,7 @@ class TestCreds(BaseTest):
         assert child.expect([pattern]) == 0
 
     def test_acquire_multi(self):
-        if not self.online_tests_allowed() or not \
-                self.administrator_tests_allowed():
-            return
+        self.require(ad=True, admin=True)
         domain = self.domain()
         principal = self.admin_account()
         password = self.admin_password()
@@ -98,9 +92,7 @@ class TestCreds(BaseTest):
         assert os.environ['KRB5_CONFIG'] == config2
 
     def test_release_multi(self):
-        if not self.online_tests_allowed() or not \
-                self.administrator_tests_allowed():
-            return
+        self.require(ad=True, admin=True)
         domain = self.domain()
         principal = self.admin_account()
         password = self.admin_password()
@@ -122,9 +114,7 @@ class TestCreds(BaseTest):
         assert os.environ.get('KRB5_CONFIG') == cforig
 
     def test_cleanup_files(self):
-        if not self.online_tests_allowed() or not \
-                self.administrator_tests_allowed():
-            return
+        self.require(ad=True, admin=True)
         domain = self.domain()
         principal = self.admin_account()
         password = self.admin_password()
@@ -139,9 +129,7 @@ class TestCreds(BaseTest):
         assert not os.access(config, os.R_OK)
 
     def test_cleanup_environment(self):
-        if not self.online_tests_allowed() or not \
-                self.administrator_tests_allowed():
-            return
+        self.require(ad=True, admin=True)
         domain = self.domain()
         principal = self.admin_account()
         password = self.admin_password()

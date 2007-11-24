@@ -28,9 +28,7 @@ class TestLocator(BaseTest):
     """Test suite for Locator."""
 
     def test_simple(self):
-        if not self.online_tests_allowed() \
-                or not self.administrator_tests_allowed():
-            return
+        self.require(ad=True)
         domain = self.domain()
         loc = Locator()
         result = loc.locate_many(domain)
@@ -41,12 +39,7 @@ class TestLocator(BaseTest):
         assert len(result) == 1
 
     def test_network_failure(self):
-        if not self.administrator_tests_allowed() \
-                or not self.online_tests_allowed() \
-                or not self.root_tests_allowed() \
-                or not self.firewall_tests_allowed \
-                or not self.iptables_supported():
-            return
+        self.require(ad=True, root=True, firewall=True, admin=True)
         domain = self.domain()
         loc = Locator()
         # Block outgoing DNS and CLDAP traffic and enable it after 3 seconds.
@@ -93,9 +86,7 @@ class TestLocator(BaseTest):
             assert abs(count[x] - n*p) < 6 * stddev(n, p)
 
     def test_detect_site(self):
-        if not self.online_tests_allowed() \
-                or not self.administrator_tests_allowed():
-            return
+        self.require(ad=True)
         loc = Locator()
         domain = self.domain()
         site = loc._detect_site(domain)

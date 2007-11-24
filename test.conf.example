@@ -8,6 +8,22 @@
 
 [test]
 
+#
+# Some test in the FreeADI test suite require an Active Directory. These tests
+# are disabled by default and can be enabled in this configuration file. A
+# great way of doing AD tests is to install a new AD forest in one or multiple
+# virtual machines on the current system. Connect the systems to a virtual
+# network that is shared with the host, and enable DNS services. Then add a
+# line to "/etc/resolv.conf" pointing to a DNS server in the new AD forest.
+# This is sufficient to start enabling AD tests.
+
+# Set to 1 to enable tests that require an active directory. All tests that
+# become enabled by this setting are non-intrusive.
+ad_tests = 0
+
+# Change to the domain that is to be used for AD tests.
+domain = freeadi.org
+
 #                   WARNING !!! WARNING !!! WARNING !!!
 #
 # FreeADI has support for "intrusive tests". These tests require elevated
@@ -18,20 +34,21 @@
 # settings the following variables to "1" and providing the proper password
 # in this configuration file.
 #
-#  - administrator_tests:  Controls tests that require AD administrator access.
-#  - online_tests:    	   Enables tests that access or modify data in Active
-#                          Directory. Depending on the setting of administrator_tests
-#                          is disabled, these tests will or will not modify data.
 #  - root_tests:           Controls tests that require root access.
 #  - firewall_tests:       Controls tests that change the firewall configuration of
 #  		           the local system to test certain aspects (mostly
 #  		           error conditions) of protocol clients implemented by
 #  		           FreeADI.
+#  - admin_tests:  	   Controls tests that require AD administrator access.
+#  - ad_write_tests:  	   Enables tests that access or modify data in Active
+#                          Directory. Depending on the setting of administrator_tests
+#                          is disabled, these tests will or will not modify data.
 #
 # Intrusive tests should be in an environment that is not production critical.
 # A good candidate for such an environment would be a set of virtualised host
 # running on a developer workstations which are connected to a host-only
-# network.
+# network. See the section above on AD tests on how to set up such an
+# environment.
 #
 # Intrusive tests are written such that after running a set of tests the system
 # will be in a state that allows running the tests again, and so on.  In
@@ -40,22 +57,6 @@
 # however that after a running a set of tests the system will be in the same
 # state as it was before the tests. This is the reason that intrusive tests
 # should never be run on a production environment.
-
-# Set to 1 to enable tests that require AD administrator access, 0 to
-# disable.
-administrator_tests = 0
-
-# The domain on which to perform the tests
-domain = freeadi.org
-
-# The administrator account
-admin_account = Administrator
-
-# The administrator password
-admin_password = <password>
-
-# Set to 1 to enable tests that access or modify data in AD, 0 to disable.
-online_tests = 0
 
 # Set to 1 to enable tests that require local root access, 0 to disable.
 root_tests = 0
@@ -69,3 +70,16 @@ root_password = <password>
 # Set to 1 to enable tests that require modification of the firewall on the
 # current system, 0 to disable. See the warning above
 firewall_tests = 0
+
+# Set to 1 to enable tests that require AD administrator access, 0 to
+# disable.
+admin_tests = 0
+
+# The administrator account
+admin_account = Administrator
+
+# The administrator password
+admin_password = <password>
+
+# Set to 1 to enable tests that modify data in AD.
+ad_write_tests = 0

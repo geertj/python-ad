@@ -206,8 +206,7 @@ class TestClient(BaseTest):
     """Test suite for netlogon.Client."""
 
     def test_simple(self):
-        if not self.online_tests_allowed():
-            return
+        self.require(ad=True)
         domain = self.domain()
         client = netlogon.Client()
         answer = dns.resolver.query('_ldap._tcp.%s' % domain, 'SRV')
@@ -233,12 +232,7 @@ class TestClient(BaseTest):
             assert res.timing >= 0.0
 
     def test_network_failure(self):
-        if not self.administrator_tests_allowed() \
-                or not self.online_tests_allowed() \
-                or not self.root_tests_allowed() \
-                or not self.firewall_tests_allowed \
-                or not self.iptables_supported():
-            return
+        self.require(ad=True, root=True, firewall=True)
         domain = self.domain()
         client = netlogon.Client()
         answer = dns.resolver.query('_ldap._tcp.%s' % domain, 'SRV')
