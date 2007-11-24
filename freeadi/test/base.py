@@ -16,12 +16,20 @@ import logging
 from ConfigParser import ConfigParser
 
 
+class Error(Exception):
+    """Test error."""
+
+
 class BaseTest(object):
     """Base class for FreeADI tests."""
 
     def setup_class(cls):
         config = ConfigParser()
-        fname = os.environ['FREEADI_TEST_CONFIG']
+        fname = os.environ.get('FREEADI_TEST_CONFIG')
+        if fname is None:
+            raise Error, 'FreeADI test configuration file not specified.'
+        if not os.access(fname, os.R_OK):
+            raise Error, 'FreeADI test configuration file does not exist.'
         config.read(fname)
         cls.c_config = config
         cls.c_basedir = os.path.dirname(fname)
@@ -75,29 +83,29 @@ class BaseTest(object):
 
     def domain(self):
         if not self.online_tests_allowed():
-            raise RuntimeError, 'Online tests not allowed by configuration.'
+            raise Error, 'Online tests not allowed by configuration.'
         config = self.config()
         domain = config.get('test', 'domain')
         if domain is None:
-            raise RuntimeError, 'Test configuration variable `domain\' not set.'
+            raise Error, 'Test configuration variable `domain\' not set.'
         return domain
 
     def admin_account(self):
         if not self.online_tests_allowed():
-            raise RuntimeError, 'Online tests not allowed by configuration.'
+            raise Error, 'Online tests not allowed by configuration.'
         config = self.config()
         account = config.get('test', 'admin_account')
         if account is None:
-            raise RuntimeError, 'Test configuration variable `admin_account\' not set.'
+            raise Error, 'Test configuration variable `admin_account\' not set.'
         return account
 
     def admin_password(self):
         if not self.online_tests_allowed():
-            raise RuntimeError, 'Online tests not allowed by configuration.'
+            raise Error, 'Online tests not allowed by configuration.'
         config = self.config()
         password = config.get('test', 'admin_password')
         if password is None:
-            raise RuntimeError, 'Test configuration variable `admin_password\' not set.'
+            raise Error, 'Test configuration variable `admin_password\' not set.'
         return password
 
     def online_tests_allowed(self):
@@ -110,25 +118,25 @@ class BaseTest(object):
 
     def root_account(self):
         if not self.root_tests_allowed():
-            raise RuntimeError, 'Root tests are not allowed by configuration.'
+            raise Error, 'Root tests are not allowed by configuration.'
         config = self.config()
         account = config.get('test', 'root_account')
         if account is None:
-            raise RuntimeError, 'Test configuration variable `root_account\' not set.'
+            raise Error, 'Test configuration variable `root_account\' not set.'
         return account
 
     def root_password(self):
         if not self.root_tests_allowed():
-            raise RuntimeError, 'Root tests are not allowed by configuration.'
+            raise Error, 'Root tests are not allowed by configuration.'
         config = self.config()
         password = config.get('test', 'root_password')
         if password is None:
-            raise RuntimeError, 'Test configuration variable `root_password\' not set.'
+            raise Error, 'Test configuration variable `root_password\' not set.'
         return password
 
     def execute_as_root(self, command):
         if not self.root_tests_allowed():
-            raise RuntimeError, 'Root tests are not allowed by configuration.'
+            raise Error, 'Root tests are not allowed by configuration.'
         child = pexpect.spawn('su -c "%s" %s' % (command, self.root_account()))
         child.expect('.*:')
         child.sendline(self.root_password())
@@ -136,7 +144,7 @@ class BaseTest(object):
         assert not child.isalive()
         if child.exitstatus != 0:
             m = 'Root command exited with status %s' % child.exitstatus
-            raise RuntimeError, m
+            raise Error, m
         return child.before
 
     def firewall_tests_allowed(self):
@@ -148,7 +156,7 @@ class BaseTest(object):
             try:
                 self.execute_as_root('iptables -L -n')
                 self.execute_as_root('conntrack -L')
-            except RuntimeError:
+            except Error:
                 self.c_iptables = False
             else:
                 self.c_iptables = True
@@ -157,9 +165,9 @@ class BaseTest(object):
     def remove_network_blocks(self):
         if not self.root_tests_allowed() or not \
                 self.firewall_tests_allowed():
-            raise RuntimeError, 'Action not allowed by configuration.'
+            raise Error, 'Action not allowed by configuration.'
         if not self.iptables_supported():
-            raise RuntimeError, 'Iptables not supported on this system.'
+            raise Error, 'Iptables not supported on this system.'
         self.execute_as_root('iptables -t nat -F')
         self.execute_as_root('conntrack -F')
 
