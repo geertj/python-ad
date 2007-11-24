@@ -18,6 +18,11 @@ from freeadi.protocol.netlogon import Client as NetlogonClient
 from freeadi.core.exception import Error as ADError
 
 
+LDAP_PORT = 389
+KERBEROS_PORT = 88
+KPASSWD_PORT = 464
+
+
 class Locator(object):
     """Locate domain controllers.
     
@@ -79,7 +84,7 @@ class Locator(object):
         if key in self.m_cache:
             stamp, nrequested, servers = self.m_cache[key]
             now = time.time()
-            if now - stamp < timeout and nrequested >= maxservers:
+            if now - stamp < self._timeout and nrequested >= maxservers:
                 self.m_logger.debug('domain controllers found in cache')
                 return servers
         self.m_logger.debug('domain controllers not in cache, going to network')
@@ -96,23 +101,24 @@ class Locator(object):
         query = '_ldap._tcp.%s._msdcs.%s' % (role, domain.lower())
         answer = self._dns_query(query, 'SRV')
         candidates += self._order_dns_srv(answer)
-        candidates = self._extract_addresses(candidates)
+        candidates = self._extract_addresses_from_srv(candidates)
         self._remove_duplicates(candidates)
         replies = []
         netlogon = NetlogonClient()
         for i in range(0, len(candidates), maxservers):
             for addr in candidates[i:i+maxservers]:
-                addr = (addr[0], 389)
+                addr = (addr, LDAP_PORT)
                 netlogon.query(addr, domain)
             replies += netlogon.call()
             if self._sufficient_domain_controllers(replies, role, maxservers):
                 break
         result = self._select_domain_controllers(replies, role, maxservers,
                                                  candidates)
-        self.m_logger.debug('found %d domain controllers' % len(result))
+        servers = self._extract_addresses_from_netlogon(result)
+        self.m_logger.debug('found %d domain controllers' % len(servers))
         now = time.time()
-        self.m_cache[key] = (now, maxservers, result)
-        return result
+        self.m_cache[key] = (now, maxservers, servers)
+        return servers
 
     def _dns_query(self, query, type):
         """Perform a DNS query."""
@@ -132,11 +138,12 @@ class Locator(object):
         query = '_ldap._tcp.%s' % domain.lower()
         answer = self._dns_query(query, 'SRV')
         servers = self._order_dns_srv(answer)
-        servers = self._extract_addresses(servers)
+        servers = self._extract_addresses_from_srv(servers)
         replies = []
         netlogon = NetlogonClient()
         for i in range(0, len(servers), 3):
             for addr in servers[i:i+3]:
+                addr = (addr, LDAP_PORT)
                 self.m_logger.debug('NetLogon query to %s' % addr[0])
                 netlogon.query(addr, domain)
             replies += netlogon.call()
@@ -192,9 +199,9 @@ class Locator(object):
                     break
         return result
 
-    def _extract_addresses(self, answer):
+    def _extract_addresses_from_srv(self, answer):
         """Extract IP addresses from a DNS SRV query answer."""
-        result = [ (a.target.to_text(), a.port) for a in answer ]
+        result = [ a.target.to_text() for a in answer ]
         return result
 
     def _remove_duplicates(self, servers):
@@ -267,4 +274,9 @@ class Locator(object):
         remote.sort(lambda x,y: x.timing - y.timing)
         result = local + remote
         result = result[:maxservers]
+        return result
+
+    def _extract_addresses_from_netlogon(self, replies):
+        """Return (hostname, port) tuples from a list of netlogon replies."""
+        result = [ r.hostname for r in replies ]
         return result
