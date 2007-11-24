@@ -18,7 +18,7 @@ from freeadi.core.object import instance, activate
 class TestCreds(BaseTest):
     """Test suite for freeadi.core.creds."""
 
-    def test_acquire_real(self):
+    def test_acquire_password(self):
         if not self.online_tests_allowed() or not \
                 self.administrator_tests_allowed():
             return
@@ -29,6 +29,42 @@ class TestCreds(BaseTest):
         creds.acquire(principal, password)
         principal = '%s@%s' % (principal, domain)
         assert creds.principal().lower() == principal.lower()
+        child = pexpect.spawn('klist')
+        pattern = '.*krbtgt/%s@%s' % (domain.upper(), domain.upper())
+        assert child.expect([pattern]) == 0
+
+    def test_acquire_keytab(self):
+        if not self.online_tests_allowed() or not \
+                self.administrator_tests_allowed():
+            return
+        domain = self.domain()
+        creds = ADCreds(domain)
+        principal = self.admin_account()
+        password = self.admin_password()
+        creds.acquire(principal, password)
+        os.environ['PATH'] = '/usr/kerberos/sbin:/usr/kerberos/bin:%s' % \
+                             os.environ['PATH']
+        fullprinc = creds.principal()
+        child = pexpect.spawn('kvno %s' % fullprinc)
+        child.expect('kvno =')
+        kvno = int(child.readline())
+        child.expect(pexpect.EOF)
+        child = pexpect.spawn('ktutil')
+        child.expect('ktutil:')
+        child.sendline('addent -password -p %s -k %d -e rc4-hmac' %
+                      (fullprinc, kvno))
+        child.expect('Password for.*:')
+        child.sendline(password)
+        child.expect('ktutil:')
+        keytab = self.tempfile(remove=True)
+        child.sendline('wkt %s' % keytab)
+        child.expect('ktutil:')
+        child.sendline('quit')
+        child.expect(pexpect.EOF)
+        creds.release()
+        os.system('klist -k -t %s' % keytab)
+        os.system('ls -l %s' % keytab)
+        creds.acquire(principal, keytab=keytab)
         child = pexpect.spawn('klist')
         pattern = '.*krbtgt/%s@%s' % (domain.upper(), domain.upper())
         assert child.expect([pattern]) == 0
