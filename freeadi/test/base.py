@@ -80,68 +80,74 @@ class BaseTest(object):
     def basedir(self):
         return self.c_basedir
 
-    def require(self, ad=False, root=False, firewall=False, admin=False,
-                ad_write=False):
+    def require(self, ad_user=False, local_admin=False, ad_admin=False,
+                firewall=False):
+        if firewall:
+            local_admin = True
         config = self.config()
-        if ad and not config.getboolean('test', 'ad_tests'):
+        if ad_user and not config.getboolean('test', 'readonly_ad_tests'):
             py.test.skip('test disabled by configuration')
             if not config.get('test', 'domain'):
                 py.test.skip('ad tests enabled but no domain given')
-        if root:
-            if not config.getboolean('test', 'root_tests'):
+            if not config.get('test', 'ad_user_account') or \
+                    not config.get('test', 'ad_user_password'):
+                py.test.skip('readonly ad tests enabled but no user/pw given')
+        if local_admin:
+            if not config.getboolean('test', 'intrusive_local_tests'):
                 py.test.skip('test disabled by configuration')
-            if not config.get('test', 'root_account') or \
-                    not config.get('test', 'root_password'):
-                py.test.skip('root tests enabled but no username/pw given')
-        if firewall:
-            if not config.getboolean('test', 'firewall_tests'):
+            if not config.get('test', 'local_admin_account') or \
+                    not config.get('test', 'local_admin_password'):
+                py.test.skip('intrusive local tests enabled but no user/pw given')
+        if ad_admin:
+            if not config.getboolean('test', 'intrusive_ad_tests'):
                 py.test.skip('test disabled by configuration')
-            if not self._iptables_supported():
-                py.test.skip('iptables/conntrack not available')
-        if admin:
-            if not config.getboolean('test', 'admin_tests'):
-                py.test.skip('test disabled by configuration')
-            if not config.get('test', 'admin_account') or \
-                    not config.get('test', 'admin_password'):
-                py.test.skip('admin tests enabled but no username/pw given')
-        if ad_write and not config.getboolean('test', 'ad_write_tests'):
-            py.test.skip('test disabled by configuration')
+            if not config.get('test', 'ad_admin_account') or \
+                    not config.get('test', 'ad_admin_password'):
+                py.test.skip('intrusive ad tests enabled but no user/pw given')
+        if firewall and not self._iptables_supported():
+            py.test.skip('iptables/conntrack not available')
 
     def domain(self):
-        self.require(ad=True)
         config = self.config()
         domain = config.get('test', 'domain')
         return domain
 
-    def root_account(self):
-        self.require(root=True)
-        config = self.config()
-        account = config.get('test', 'root_account')
+    def ad_user_account(self):
+        self.require(ad_user=True)
+        account = self.config().get('test', 'ad_user_account')
         return account
 
-    def root_password(self):
-        self.require(root=True)
-        config = self.config()
-        password = config.get('test', 'root_password')
+    def ad_user_password(self):
+        self.require(ad_user=True)
+        password = self.config().get('test', 'ad_user_password')
         return password
 
-    def admin_account(self):
-        self.require(admin=True)
-        config = self.config()
-        account = config.get('test', 'admin_account')
+    def local_admin_account(self):
+        self.require(local_admin=True)
+        account = self.config().get('test', 'local_admin_account')
         return account
 
-    def admin_password(self):
-        self.require(admin=True)
-        config = self.config()
-        password = config.get('test', 'admin_password')
+    def local_admin_password(self):
+        self.require(local_admin=True)
+        password = self.config().get('test', 'local_admin_password')
+        return password
+
+    def ad_admin_account(self):
+        self.require(ad_admin=True)
+        account = self.config().get('test', 'ad_admin_account')
+        return account
+
+    def ad_admin_password(self):
+        self.require(ad_admin=True)
+        password = self.config().get('test', 'ad_admin_password')
         return password
 
     def execute_as_root(self, command):
-        self.require(root=True)
-        child = pexpect.spawn('su -c "%s" %s' % (command, self.root_account()))
+        self.require(local_admin=True)
+        child = pexpect.spawn('su -c "%s" %s' % \
+                              (command, self.local_admin_account()))
         child.expect('.*:')
-        child.sendline(self.root_password())
+        child.sendline(self.local_admin_password())
         child.expect(pexpect.EOF)
         assert not child.isalive()
         if child.exitstatus != 0:
@@ -161,13 +167,13 @@ class BaseTest(object):
         return self.c_iptables
 
     def remove_network_blocks(self):
-        self.require(root=True, firewall=True)
+        self.require(local_admin=True, firewall=True)
         self.execute_as_root('iptables -t nat -F')
         self.execute_as_root('conntrack -F')
 
     def block_outgoing_traffic(self, protocol, port):
         """Block outgoing traffic of type `protocol' with destination `port'."""
-        self.require(root=True, firewall=True)
+        self.require(local_admin=True, firewall=True)
         # Unfortunately we cannot simply insert a rule like this: -A OUTPUT -m
         # udp -p udp--dport 389 -j DROP.  If we do this the kernel code will
         # be smart and return an error when sending trying to connect or send

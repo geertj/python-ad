@@ -7,8 +7,11 @@
 # "AUTHORS" for a complete overview.
 
 from freeadi.test.base import BaseTest
-from freeadi.core.client import ADClient
+from freeadi.core.client import Client as ADClient
 
 
 class TestADClient(BaseTest):
     """Test suite for ADClient"""
+
+    def test_simple(self):
+        self.require(ad_user=True)
