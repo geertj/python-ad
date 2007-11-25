@@ -13,147 +13,286 @@ import ldap
 import ldap.sasl
 import socket
 
-from freeadi.exception import FreeADIError
+from freeadi.core.exception import Error as ADError
+from freeadi.core.object import factory, instance
+from freeadi.core.creds import Creds
+from freeadi.core.locate import Locator
+
+# LDAP Constants
+
+SCOPE_BASE = ldap.SCOPE_BASE
+SCOPE_ONELEVEL = ldap.SCOPE_ONELEVEL
+SCOPE_SUBTREE = ldap.SCOPE_SUBTREE
+
+MOD_ADD = ldap.MOD_ADD
+MOD_REPLACE = ldap.MOD_REPLACE
+MOD_DELETE = ldap.MOD_DELETE
+
+# AD Constants
+
+CTRL_ACCOUNT_DISABLED = 0x2
+CTRL_NORMAL_ACCOUNT = 0x200
+CTRL_WORKSTATION_ACCOUNT = 0x1000
+CTRL_DONT_EXPIRE_PASSWORD = 0x10000
 
 
-class ADClient(object):
+class Client(object):
     """Active Directory Client
 
     This class implements a client interface to AD. It provides LDAP
-    operations, DNS SRV server resolution, Kerberos functions and more.
+    operations, Kerberos operations and more.
     """
 
-    def __init__(self, domain=None):
-        """Constructor."""
-        if domain:
-            self.set_domain(domain)
-        self.m_connection = None
-        self.m_site = None
-        self.m_site_resolved = False
+    _timelimit = 0
+    _sizelimit = 0
+    _referrals = False
 
-    def _ldap_uri(self, servers):
+    def __init__(self, domain):
+        """Constructor."""
+        self.m_domain = domain
+        self.m_root = None
+        self.m_contexts = None
+        self.m_locator = None
+
+    def _locator(self):
+        """Return our resource locator."""
+        if self.m_locator is None:
+            self.m_locator = factory(Locator)
+        return self.m_locator
+
+    def _check_credentials(self):
+        """Ensure we have AD credentials."""
+        creds = instance(Creds)
+        if not creds.principal():
+            m = 'No current credentials or credentials not activated.'
+            raise ADError, m
+
+    def _create_ldap_uri(self, servers):
         """Return an LDAP uri for the server list `servers'."""
-        parts = [ 'ldap://%s:%d/' % (srv, prt) for (srv, prt) in servers ]
+        parts = [ 'ldap://%s/' % srv for srv in servers ]
         uri = ' '.join(parts)
         return uri
 
-    def _open_ldap_connection(self, uri):
-        """Open a new LDAP connection and bind it using GSSAPI."""
+    def _create_ldap_connection(self, uri, bind=True):
+        """Open a new LDAP connection and optionally bind it using GSSAPI."""
         ld = ldap.initialize(uri)
-        sasl = ldap.sasl.sasl({}, 'GSSAPI')
         ld.procotol_version = 3
-        ld.sasl_interactive_bind_s('', sasl)
+        ld.timelimit = self._timelimit
+        ld.sizelimit = self._sizelimit
+        ld.referrals = self._referrals
+        if bind:
+            self._check_credentials()
+            sasl = ldap.sasl.sasl({}, 'GSSAPI')
+            ld.sasl_interactive_bind_s('', sasl)
         return ld
 
-    def _ldap_connection(self):
-        """Return the (cached) LDAP connection for the domain."""
-        if not self.m_connection:
-            servers = self.resolve_server_list('ldap', 'tcp', max=3)
-            uri = self._ldap_uri(servers)
-            self.m_connection = self._open_ldap_connection(uri)
-        return self.m_connection
+    def _ldap_connection(self, context):
+        """Return the (cached) LDAP connection for a naming context."""
+        assert context in self.m_contexts
+        if self.m_contexts[context] is None:
+            locator = self._locator()
+            domain = self.domain_name_from_dn(context)
+            servers = locator.locate_many(domain)
+            uri = self._create_ldap_uri(servers)
+            conn = self._create_ldap_connection(uri)
+            self.m_contexts[context] = conn
+        return self.m_contexts[context]
 
     def close(self):
         """Close any active LDAP connection."""
-        if self.m_connection:
-            self.m_connection.unbind_s()
-            self.m_connection = None
+        for ctx in self.m_contexts:
+            conn = self.m_contexts[ctx]
+            if conn is not None:
+                conn.unbind_s()
+                self.m_contexts[ctx] = None
 
-    def _check_credentials(self):
-        """Check if the calling process has any Kerberos credentials."""
+    def domain_name_from_dn(self, dn):
+        """Given a DN, return a domain."""
+        parts = ldap.str2dn(dn)
+        parts.reverse()
+        domain = []
+        for part in parts:
+            type,value,flags = part[0]  # weird API..
+            if type != 'dc':
+                break
+            domain.insert(0, value)
+        return '.'.join(domain)
 
-    def _ldap_value(self, value):
-        """Return a python-ldap value list."""
-        if not isinstance(value, tuple) and not isinstance(value, list):
-            value = [value]
-        return value
+    def dn_from_domain_name(self, name):
+        """Given a domain name, return a DN."""
+        parts = name.split('.')
+        dn = [ 'dc=%s' % p for p in parts ]
+        dn = ','.join(dn)
+        return dn
 
-    def _ldap_scope(self, scope):
-        """Return a python-ldap SCOPE_* constant for the string `scope'."""
-        if scope == 'base':
-            scope = ldap.SCOPE_BASE
-        elif scope == 'onelevel':
-            scope = ldap.SCOPE_ONELEVEL
-        elif scope == 'subtree':
-            scope = ldap.SCOPE_SUBTREE
-        else:
-            raise ValueError, 'Illegal search scope: %s' % scope
-        return scope
+    def root(self):
+        """Return the root of the forest."""
+        if self.m_root:
+            return self.m_root
+        locator = self._locator()
+        servers = locator.locate_many(self.m_domain)
+        uri = self._create_ldap_uri(servers)
+        conn = self._create_ldap_connection(uri, bind=False)
+        try:
+            attrs = ('rootDomainNamingContext',)
+            result = conn.search_s('', ldap.SCOPE_BASE, attrlist=attrs)
+            if not result:
+                raise ADError, 'Could not search rootDSE of domain.'
+        finally:
+            conn.unbind_s()
+        dn, attrs = result[0]
+        nc = attrs['rootDomainNamingContext'][0]
+        self.m_root = self.domain_name_from_dn(nc)
+        return self.m_root
 
-    def _ldap_modify_operation(self, operation):
-        """Return a python-ldap MOD_* constant for the string `operation'."""
-        if operation == 'add':
-            operation = ldap.MOD_ADD
-        elif operation == 'delete':
-            operation = ldap.MOD_DELETE
-        elif operation == 'replace':
-            operation = ldap.MOD_REPLACE
-        else:
-            raise ValueError, 'Illegal modify operation: %s' % operation
-        return operation
+    def _init_contexts(self):
+        """Initialize naming contexts."""
+        if self.m_contexts is not None:
+            return
+        root = self.root()
+        locator = self._locator()
+        servers = locator.locate_many(self.m_domain)
+        uri = self._create_ldap_uri(servers)
+        conn = self._create_ldap_connection(uri, bind=False)
+        try:
+            attrs = ('namingContexts',)
+            result = conn.search_s('', ldap.SCOPE_BASE, attrlist=attrs)
+            if not result:
+                raise ADError, 'Could not search rootDSE of forest root.'
+        finally:
+            conn.unbind_s()
+        dn, attrs = result[0]
+        contexts = {}
+        for nc in attrs['namingContexts']:
+            nc = nc.lower()
+            domain = self.domain_name_from_dn(nc)
+            contexts[nc] = None
+        self.m_contexts = contexts
 
-    def _search_base(self, domain):
-        """Return the base DN of the domain."""
-        parts = domain.split('.')
-        base = ','.join(['dc=%s' % part.lower() for part in parts])
-        return base
+    def contexts(self):
+        """Return a list of all naming contexts."""
+        if self.m_contexts is None:
+            self._init_contexts()
+        return self.m_contexts.keys()
+
+    def _resolve_context(self, base):
+        """Resolve a base dn to a naming context."""
+        if self.m_contexts is None:
+            self._init_contexts()
+        context = ''
+        base = base.lower()
+        for ctx in self.m_contexts:
+            if base.endswith(ctx) and len(ctx) > len(context):
+                context = ctx
+        if not context:
+            m = 'No valid naming context for base %s' % base
+            raise ADError, m
+        return context
+
+    def _check_search_attrs(self, attrs):
+        """Check validity of the `attrs' argument to search()."""
+        if not isinstance(attrs, list) or not isinstance(attrs, tuple):
+            raise ADError, 'Expecting sequence of strings.'
+        for item in attrs:
+            if not isinstance(item, str):
+                raise ADError, 'Expecting sequence of strings.'
+
+    def _remove_empty_search_entries(self, result):
+        """Remove empty search entries from a search result."""
+        # What I have seen so far these entries are always LDAP referrals
+        return filter(lambda x: x[0] is not None, result)
 
     def search(self, filter=None, base=None, scope=None, attrs=None):
         """Search Active Directory and return a list of objects.
 
         The `filter' argument specifies an RFC 2254 search filter. If it is
-        not provided, the default is '(objectClass=*)'.  `base' is the
-        search base and defaults to the domain base.  `scope' is the search
-        scope and must be one of 'base', 'one' or 'subtree'. The default
-        scope is 'substree'. `attrs' is the attribute list to retrieve. The
-        default is to retrieve all attributes.
+        not provided, the default is '(objectClass=*)'.  `base' is the search
+        base and defaults to the base of the current domain.  `scope' is the
+        search scope and must be one of 'base', 'one' or 'subtree'. The
+        default scope is 'substree'. `attrs' is the attribute list to
+        retrieve. The default is to retrieve all attributes.
         """
         if filter is None:
             filter = '(objectClass=*)'
         if base is None:
-            base = self._search_base(self.domain())
+            base = self.dn_from_domain_name(self.domain())
         if scope is None:
-            scope = 'subtree'
-        scope = self._ldap_scope(scope)
-        conn = self._ldap_connection()
+            scope = SCOPE_SUBTREE
+        if attrs is not None:
+            self._check_search_attrs(attrs)
+        context = self._resolve_context(base)
+        conn = self._ldap_connection(context)
         result = conn.search_s(base, scope, filter, attrs)
+        result = self._remove_empty_search_entries(result)
         return result
+
+    def _check_add_list(self, attrs):
+        """Check the `attrs' arguments to add()."""
+        if not isinstance(attrs, list) and not isinstance(attrs, tuple):
+            raise TypeError, 'Expecting list of 2-tuples %s.'
+        for item in attrs:
+            if not isinstance(item, tuple) and not isinstance(item, list) \
+                    or not len(item) == 2:
+                raise TypeError, 'Expecting list of 2-tuples.'
+        for type,values in attrs:
+            if not isinstance(type, str):
+                raise TypeError, 'List items must be 2-tuple of (str, [str]).'
+            if not isinstance(values, list) and not isinstance(values, tuple):
+                raise TypeError, 'List items must be 2-tuple of (str, [str]).'
+            for val in values:
+                if not isinstance(val, str):
+                    raise TypeError, 'List items must be 2-tuple of (str, [str]).'
 
     def add(self, dn, attrs):
         """Add a new object to Active Directory.
         
-        The object is created at `dn' with attribute `attrs'.  The
-        `attrs' parameter must be a dictionary with string keys and
-        string or list values. The key are the LDAP attributes, the
-        values are the LDAP attribute values.
+        The object is createdwith a distinguished name `dn' and with attribute
+        `attrs'.  The `attrs' parameter must be a list of (type, values)
+        2-tuples. The type component is the LDAP attribute name and must be a
+        string. The values component is the LDAP attribute values and must be
+        a list of strings.
         """
-        modlist = []
-        for key in attrs:
-            value = attrs[key]
-            value = self._ldap_value(value)
-            modlist.append((key, value))
-        conn = self._ldap_connection()
-        conn.add_s(dn, modlist)
+        self._check_add_list(attrs)
+        context = self._resolve_context(dn)
+        conn = self._ldap_connection(context)
+        conn.add_s(dn, attrs)
+
+    def _check_modify_list(self, mods):
+        """Check the `mods' argument to modify()."""
+        if not isinstance(attrs, list) and not isinstance(attrs, tuple):
+            raise TypeError, 'Expecting list of 3-tuples.'
+        for item in attrs:
+            if not isinstance(item, tuple) and not isinstance(item, list) \
+                    or not len(item) == 3:
+                raise TypeError, 'Expecting list of 3-tuples.'
+        for op,type,values in attrs:
+            if not op in (MOD_ADD, MOD_REPLACE, MOD_DELETE):
+                raise TypeError, 'List items must be 3-tuple of (op, str, [str]).'
+            if not isinstance(type, str):
+                raise TypeError, 'List items must be 2-tuple of (op, str, [str]).'
+            if not isinstance(values, list) and not isinstance(values, tuple):
+                raise TypeError, 'List items must be 2-tuple of (op, str, [str]).'
+            for val in values:
+                if not isinstance(val, str):
+                    raise TypeError, 'List items must be 2-tuple of (str, [str]).'
 
     def modify(self, dn, mods):
         """Modify the LDAP object `dn' with `mods'.
         
-        The `mods' parameter must be a list of 3-tuples op,key,value, with
-        op being the operation ('add', 'delete' or 'replace'), key the
-        attribute name and value a string or list of strings containing the
-        attribute value(s).
+        The `mods' parameter must be a list of 3-tuples (op,type,value), with
+        op being the operation (MOD_ADD, MOD_REPLACE or MOD_DELETE), type the
+        attribute name and value a list of strings containing the attribute
+        value(s).
         """
-        modlist = []
-        for op,key,value in mods:
-            op = self._ldap_modify_operation(op)
-            value = self._ldap_value(value)
-            modlist.append((op,key,value))
-        conn = self._ldap_connection()
+        self._check_modify_list(mods)
+        context = self._resolve_context(dn)
+        conn = self._ldap_connection(context)
         conn.modify_s(dn)
 
     def delete(self, dn):
         """Delete the LDAP object referenced by `dn'."""
-        conn = self._ldap_connection()
+        context = self._resolve_context(dn)
+        conn = self._ldap_connection(context)
         conn.delete_s(dn)
 
     def modrdn(self, dn, rdn):
@@ -161,212 +300,16 @@ class ADClient(object):
 
         `dn' specifies the object, `rdn' is the new RDN.
         """
-        conn = self._ldap_connection()
+        context = self._resolve_context(dn)
+        conn = self._ldap_connection(context)
         conn.modrdn_s(dn, rdn)
-
-    def _hostname(self):
-        """Return the host name.
-
-        The host name is defined as the "short" host name. If the hostname as
-        returned by gethostname() includes a domain, the part until the first
-        period ('.') is returned.
-        """
-        hostname = socket.gethostname()
-        if '.' in hostname:
-            hostname = hostname.split('.')[0]
-        return hostname
-
-    def _address(self):
-        """Return the IP address of the current host.
-        
-        The IP address is defined as the result of a DNS A query on the short
-        host name.
-        """
-        hostname = self._hostname()
-        try:
-            answer = dns.resolver.query(hostname, 'A')
-        except dns.exception.DNSException:
-            raise FreeADIError, 'Could not resolve hostname in DNS'
-        address = answer.rrset[0].address
-        return address
-
-    def _subnet(self, address, bits):
-        """Return a CIDR subnet with `bits' bits for IP address `address'."""
-        parts = address.split('.')
-        if len(parts) != 4:
-            raise ValueError, 'Illegal IP address: %s' % address
-        parts = map(long, parts)
-        address = (parts[0] << 24) + (parts[1] << 16) + (parts[2] << 8) + parts[3]
-        mask = ((1L << bits) - 1) << (32 - bits)
-        masked = address & mask
-        parts = [masked >> 24, (masked >> 16) & 0xff,
-                 (masked >> 8) & 0xff, masked & 0xff]
-        # Older version of Python add an 'L' suffix to longs so convert to
-        # int first.
-        subnet = '.'.join(map(str, map(int, parts)))
-        return subnet
-
-    def _resolve_site(self):
-        """Resolve the site code of the current system."""
-        if self.m_site_resolved:
-            return self.m_site  # can be None
-        # Below we cannot use self.resolve_server_list() to get a list of LDAP
-        # servers because that functions depends on this function to return a
-        # site code. Instead we use the domain name itself, for which AD
-        # maintains A records for all domain controllers.
-        uri = self._ldap_uri([(self.domain().lower(), ldap.PORT)])
-        conn = self._open_ldap_connection(uri)
-        # Read the DN for the configuration naming context from the rootDSE.
-        # In case our domain is a child domain, this naming context will be on
-        # a different domain controller and we will need to reconnect.
-        result = conn.search_s('', ldap.SCOPE_BASE)
-        if not result:
-            m = 'Could not read rootDSE for domain %s' % self.domain()
-            raise FreeADIError, m
-        dn, attrs = result[0]
-        config = attrs['configurationNamingContext'][0]
-        parts = config.lower().split(',')
-        parts = [ s[3:] for s in parts if s.startswith('dc=') ]
-        domain = '.'.join(parts)
-        if domain != self.domain():
-            conn.unbind_s()
-            uri = self._ldap_uri([(domain, ldap.PORT)])
-            conn = self._open_ldap_connection(uri)
-        # For performance purposes we fire of one query to match for all
-        # possible subnets, instead of firing off 16 individual queries.
-        terms = []
-        address = self._address()
-        for i in range(16, 33):
-            subnet = '%s/%s' % (self._subnet(address, i), i)
-            terms.append('(cn=%s)' % subnet)
-        query = '(&(objectClass=subnet)(|%s))' % ''.join(terms)
-        # For some reason it is necessary to add the CN=Sites prefix to the
-        # search base otherwise we get a reference.
-        base = 'CN=Sites,%s' % config
-        result = conn.search_s(base, ldap.SCOPE_SUBTREE, query)
-        if result:
-            sites = []
-            for dn,attrs in result:
-                bits = int(attrs['cn'][0].split('/')[1])
-                site = attrs['siteObject'][0].split(',')[0][3:]
-                sites.append((bits, site))
-            sites.sort()
-            self.m_site = sites[-1][1]
-        else:
-            self.m_site = None
-        self.m_site_resolved = True
-        return self.m_site
-
-    def _srv_weighted_shuffle(result):
-        """Do a weighted shuffle on the SRV query result `result'."""
-        output = []
-        for ix in range(len(result)):
-            total = result[0][1]
-            cumulative = [(result[0][1], 0)]
-            for iy in range(1, len(result)):
-                total += result[iy][1]
-                cumulative.append((cumulative[-1][0] + result[iy][1], iy))
-            rnd = random.randrange(0, total)
-            for iy in range(0, len(result)):
-                if rnd < cumulative[iy]:
-                    iz = cumulative[iy][1]
-                    output.append(result[iz])
-                    del result[iz]
-                    break
-        return output
-
-    def _srv_order_result(self, result):
-        """Order an SRV query result on weight and priority."""
-        if not result:
-            return result
-        result.sort()
-        low = 0
-        low_prio = result[0][0]
-        for ix in range(1, len(result)):
-            if result[ix][0] != low_prio:
-                result[low:ix] = _srv_weighted_shuffle(result[low:ix])
-                low = ix
-                low_prio = result[ix][1]
-        return result
-
-    def resolve_server(self, service, protocol=None):
-        """Resolve and return a server that implements `service' on
-        `protocol'. `protocol' normally is either 'tcp' or 'udp'.
-        """
-        list = self.resolve_server_list(service, protocol)
-        if not list:
-            m = 'No server found for service %s/%s' % (service, protocol)
-            raise FreeADIError, m
-        server = list[0]
-        return server
-
-    def resolve_server_list(self, service, protocol='tcp', max=None):
-        """Resolve a server list for a service.
-
-        This function will return a list of servers for `service'. The list is
-        ordered on the following criteria:
-        - local servers take precendence of non-local servers
-        - servers with a higher priority (= lower numeric priority value) take
-          precendence over servers with a lower priority.
-        - given equal locality and priority, the weight factor of the SRV record
-          is used in a weighted shuffle that on average places servers with a
-          higher priority earlier in the list.
-        """
-        site = self._resolve_site()
-        domain = self.domain()
-        if site is not None:
-            query = '_%s._%s.%s._sites.dc._msdcs.%s' % \
-                    (service, protocol, site, domain)
-            answer = dns.resolver.query(query, 'SRV')
-            answer = [ (r.priority, r.weight, r.target, r.port)
-                       for r in answer ]
-            answer = self._srv_order_result(answer)
-            result = [ (target.to_text(), port)
-                       for prio, weight, target, port in answer ]
-        else:
-            result = []
-        query = '_%s._%s.%s' % (service, protocol, domain)
-        answer = dns.resolver.query(query, 'SRV')
-        answer = [ (r.priority, r.weight, r.target, r.port) for r in answer ]
-        answer = self._srv_order_result(answer)
-        result += [ (target.to_text(), port)
-                    for prio, weight, target, port in answer
-                    if (target.to_text(), port) not in result ]
-        return result
 
     def domain(self):
         """Return the current domain."""
-        if not self.m_domain:
-            raise FreeADIError, 'Domain not set'
         return self.m_domain
 
-    def set_domain(self, domain):
-        """Set the domain to `domain'."""
-        # Always keep the domain in upper case which is the convention for
-        # Kerberos realms. When we need a DNS domain name we convert it to
-        # lower case.
-        self.m_domain = domain.upper()
-
-    def netbios_name(self):
-        """Return the NETBIOS name of the current domain."""
-        pass
-
-    def _krb5_library(self):
-        if not self.m_krb5_library:
-            self.m_krb5_library = Krb5Library()
-        return self.m_krb5_library
-
     def set_password(self, principal, password):
-        lib = self._krb5_library()
-        context = Krb5Context()
-        lib.krb5_init_context(byref(context))
-
-    def change_password(self, pricipal, oldpw, newpw):
         pass
 
-    def factory(cls):
-        self = cls()
-        self.set_domain(domain)
-        return self
-
-    factory = classmethod(factory) 
+    def change_password(self, principal, oldpw, newpw):
+        pass
