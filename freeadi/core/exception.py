@@ -6,5 +6,11 @@
 # FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
 # "AUTHORS" for a complete overview.
 
+import ldap
+
+
 class Error(Exception):
     pass
+
+
+LDAPError = ldap.LDAPError
