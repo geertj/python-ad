@@ -12,6 +12,7 @@ import dns.resolver
 import dns.exception
 import ldap
 import ldap.sasl
+import ldap.controls
 import socket
 
 from ad.core.exception import Error as ADError
@@ -47,6 +48,7 @@ class Client(object):
     _timelimit = 0
     _sizelimit = 0
     _referrals = False
+    _pagesize = 500
 
     def __init__(self, domain):
         """Constructor."""
@@ -250,6 +252,12 @@ class Client(object):
                     self._retrieve_all_ranges(dn, key, attrs)
         return result
 
+    def _create_paged_results_control(self):
+        """Create a paged results control."""
+        ctrl = ldap.controls.SimplePagedResultsControl(
+                    ldap.LDAP_CONTROL_PAGE_OID, True, (self._pagesize, ''))
+        return ctrl
+
     def search(self, filter=None, base=None, scope=None, attrs=None):
         """Search Active Directory and return a list of objects.
 
@@ -270,7 +278,22 @@ class Client(object):
             self._check_search_attrs(attrs)
         context = self._resolve_context(base)
         conn = self._ldap_connection(context)
-        result = conn.search_s(base, scope, filter, attrs)
+        ctrl = self._create_paged_results_control()
+        result = []
+        while True:
+            msgid = conn.search_ext(base, scope, filter, attrs,
+                                    serverctrls=[ctrl])
+            type, data, msgid, ctrls = conn.result3(msgid)
+            rctrls = [ c for c in ctrls
+                       if c.controlType == ldap.LDAP_CONTROL_PAGE_OID ]
+            if not rctrls:
+                m = 'Server does not honour paged results.'
+                raise ADError, m
+            result += data
+            est, cookie = rctrls[0].controlValue
+            if not cookie:
+                break
+            ctrl.controlValue = (self._pagesize, cookie)
         result = self._remove_empty_search_entries(result)
         result = self._process_range_subtypes(result)
         return result

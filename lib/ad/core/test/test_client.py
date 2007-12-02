@@ -134,6 +134,17 @@ class TestADClient(BaseTest):
         result = client.search('(sAMAccountName=test-usr)')
         assert len(result) == 1
         dn, attrs = result[0]
-        print attrs.keys()
         assert attrs.has_key('memberOf')
         assert len(attrs['memberOf']) == 2000
+
+    def test_paged_results(self):
+        self.require(ad_admin=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_admin_account(), self.ad_admin_password())
+        activate(creds)
+        client = Client(domain)
+        for i in range(2000):
+            self._create_user(client, 'test-usr-%04d' % i)
+        result = client.search('(cn=test-usr-*)')
+        assert len(result) == 2000
