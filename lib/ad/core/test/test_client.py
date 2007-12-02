@@ -27,7 +27,7 @@ class TestADClient(BaseTest):
         result = client.search('(objectClass=user)')
         assert len(result) > 1
 
-    def _add_user(self, client, name):
+    def _create_user(self, client, name):
         attrs = []
         attrs.append(('cn', [name]))
         attrs.append(('sAMAccountName', [name]))
@@ -50,7 +50,7 @@ class TestADClient(BaseTest):
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
         activate(creds)
         client = Client(domain)
-        self._add_user(client, 'test-usr')
+        self._create_user(client, 'test-usr')
 
     def test_delete(self):
         self.require(ad_admin=True)
@@ -59,7 +59,7 @@ class TestADClient(BaseTest):
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
         activate(creds)
         client = Client(domain)
-        dn = self._add_user(client, 'test-usr')
+        dn = self._create_user(client, 'test-usr')
         client.delete(dn)
 
     def test_modify(self):
@@ -69,7 +69,7 @@ class TestADClient(BaseTest):
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
         activate(creds)
         client = Client(domain)
-        user = self._add_user(client, 'test-usr')
+        user = self._create_user(client, 'test-usr')
         mods = []
         mods.append((ad.MOD_REPLACE, 'sAMAccountName', ['test-usr-2']))
         client.modify(user, mods)
@@ -95,3 +95,45 @@ class TestADClient(BaseTest):
         for ctx in contexts:
             result = client.search('(objectClass=*)', scope=ad.SCOPE_BASE)
             assert len(result) == 1
+
+    def _create_group(self, client, name):
+        attrs = []
+        attrs.append(('cn', [name]))
+        attrs.append(('sAMAccountName', [name]))
+        attrs.append(('objectClass', ['group']))
+        dn = 'cn=%s,cn=Users,%s' % (name, client.dn_from_domain_name(client.domain()))
+        try:
+            client.delete(dn)
+        except (ADError, LDAPError):
+            pass
+        client.add(dn, attrs)
+        return dn
+
+    def _add_user_to_group(self, client, user, group):
+        mods = []
+        mods.append((ad.MOD_DELETE, 'member', [user]))
+        try:
+            client.modify(group, mods)
+        except (ADError, LDAPError):
+            pass
+        mods = []
+        mods.append((ad.MOD_ADD, 'member', [user]))
+        client.modify(group, mods)
+
+    def test_incremental_retrieval_of_multivalued_attributes(self):
+        self.require(ad_admin=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_admin_account(), self.ad_admin_password())
+        activate(creds)
+        client = Client(domain)
+        user = self._create_user(client, 'test-usr')
+        for i in range(2000):
+            group = self._create_group(client, 'test-grp-%04d' % i)
+            self._add_user_to_group(client, user, group)
+        result = client.search('(sAMAccountName=test-usr)')
+        assert len(result) == 1
+        dn, attrs = result[0]
+        print attrs.keys()
+        assert attrs.has_key('memberOf')
+        assert len(attrs['memberOf']) == 2000

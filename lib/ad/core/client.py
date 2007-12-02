@@ -6,6 +6,7 @@
 # Python-AD is copyright (c) 2007 by the Python-AD authors. See the file
 # "AUTHORS" for a complete overview.
 
+import re
 import dns
 import dns.resolver
 import dns.exception
@@ -202,6 +203,53 @@ class Client(object):
         # What I have seen so far these entries are always LDAP referrals
         return filter(lambda x: x[0] is not None, result)
 
+    re_range = re.compile('([^;]+);[Rr]ange=([0-9]+)(?:-([0-9]+|\\*))?')
+
+    def _retrieve_all_ranges(self, dn, key, attrs):
+        """Retrieve all ranges for a multivalued attributed."""
+        assert key in attrs
+        mobj = self.re_range.match(key)
+        assert mobj is not None
+        type, lo, hi = mobj.groups()
+        values = attrs[key]
+        context = self._resolve_context(dn)
+        conn = self._ldap_connection(context)
+        while hi != '*':
+            try:
+                hi = int(hi)
+            except ValueError:
+                m = 'Error while retrieving multi-valued attributes.'
+                raise ADError, m
+            rqattrs = ('%s;range=%s-*' % (type, hi+1),)
+            filter = '(distinguishedName=%s)' % dn
+            result = conn.search_s(context, SCOPE_SUBTREE, filter, rqattrs)
+            if not result:
+                # Object deleted?
+                break
+            dn2, attrs2 = result[0]
+            for key2 in attrs2:
+                mobj = self.re_range.match(key2)
+                if mobj is None:
+                    continue
+                type2, lo2, hi2 = mobj.groups()
+                if type2 == type and lo2 == str(hi+1):
+                    break
+            else:
+                m = 'Error while retrieving multi-valued attributes.'
+                raise ADError, m
+            values += attrs2[key2]
+            hi = hi2
+        attrs[type] = values
+        del attrs[key]
+
+    def _process_range_subtypes(self, result):
+        """Incremental retrieval of multi-valued attributes."""
+        for dn,attrs in result:
+            for key in attrs.keys():  # dict will be updated
+                if self.re_range.match(key):
+                    self._retrieve_all_ranges(dn, key, attrs)
+        return result
+
     def search(self, filter=None, base=None, scope=None, attrs=None):
         """Search Active Directory and return a list of objects.
 
@@ -224,6 +272,7 @@ class Client(object):
         conn = self._ldap_connection(context)
         result = conn.search_s(base, scope, filter, attrs)
         result = self._remove_empty_search_entries(result)
+        result = self._process_range_subtypes(result)
         return result
 
     def _check_add_list(self, attrs):
