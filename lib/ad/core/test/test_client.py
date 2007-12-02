@@ -43,24 +43,36 @@ class TestADClient(BaseTest):
         client.add(dn, attrs)
         return dn
 
-    def test_add_user(self):
+    def test_add(self):
         self.require(ad_admin=True)
         domain = self.domain()
         creds = Creds(domain)
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
         activate(creds)
         client = Client(domain)
-        self._add_user(client, 'pythonad')
+        self._add_user(client, 'test-usr')
 
-    def test_delete_user(self):
+    def test_delete(self):
         self.require(ad_admin=True)
         domain = self.domain()
         creds = Creds(domain)
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
         activate(creds)
         client = Client(domain)
-        dn = self._add_user(client, 'pythonad')
+        dn = self._add_user(client, 'test-usr')
         client.delete(dn)
+
+    def test_modify(self):
+        self.require(ad_admin=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_admin_account(), self.ad_admin_password())
+        activate(creds)
+        client = Client(domain)
+        user = self._add_user(client, 'test-usr')
+        mods = []
+        mods.append((ad.MOD_REPLACE, 'sAMAccountName', ['test-usr-2']))
+        client.modify(user, mods)
 
     def test_contexts(self):
         self.require(ad_user=True)

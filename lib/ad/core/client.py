@@ -259,13 +259,13 @@ class Client(object):
 
     def _check_modify_list(self, mods):
         """Check the `mods' argument to modify()."""
-        if not isinstance(attrs, list) and not isinstance(attrs, tuple):
+        if not isinstance(mods, list) and not isinstance(mods, tuple):
             raise TypeError, 'Expecting list of 3-tuples.'
-        for item in attrs:
+        for item in mods:
             if not isinstance(item, tuple) and not isinstance(item, list) \
                     or not len(item) == 3:
                 raise TypeError, 'Expecting list of 3-tuples.'
-        for op,type,values in attrs:
+        for op,type,values in mods:
             if not op in (MOD_ADD, MOD_REPLACE, MOD_DELETE):
                 raise TypeError, 'List items must be 3-tuple of (op, str, [str]).'
             if not isinstance(type, str):
@@ -287,7 +287,7 @@ class Client(object):
         self._check_modify_list(mods)
         context = self._resolve_context(dn)
         conn = self._ldap_connection(context)
-        conn.modify_s(dn)
+        conn.modify_s(dn, mods)
 
     def delete(self, dn):
         """Delete the LDAP object referenced by `dn'."""
