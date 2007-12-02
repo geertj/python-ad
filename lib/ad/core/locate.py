@@ -271,7 +271,7 @@ class Locator(object):
                 remote.append(reply)
         local.sort(lambda x,y: candidates.index((x.orig_hostname, x.port) -
                                candidates.index(y.orig_hostname, y.port)))
-        remote.sort(lambda x,y: x.timing - y.timing)
+        remote.sort(lambda x,y: cmp(x.timing, y.timing))
         result = local + remote
         result = result[:maxservers]
         return result
