@@ -81,7 +81,7 @@ class BaseTest(object):
         return self.c_basedir
 
     def require(self, ad_user=False, local_admin=False, ad_admin=False,
-                firewall=False):
+                firewall=False, expensive=False):
         if firewall:
             local_admin = True
         config = self.config()
@@ -106,6 +106,8 @@ class BaseTest(object):
                 py.test.skip('intrusive ad tests enabled but no user/pw given')
         if firewall and not self._iptables_supported():
             py.test.skip('iptables/conntrack not available')
+        if expensive and not config.getboolean('test', 'expensive_tests'):
+            py.test.skip('test disabled by configuration')
 
     def domain(self):
         config = self.config()

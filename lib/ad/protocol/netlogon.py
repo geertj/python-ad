@@ -286,6 +286,7 @@ class Client(object):
                 if not reply:
                     continue
                 reply.orig_hostname = hostname
+                reply.orig_domain = domain
                 reply.address = addr
                 timing = time.time() - begin
                 reply.timing = timing

@@ -10,6 +10,7 @@ import time
 import random
 import logging
 
+import ldap
 import dns.resolver
 import dns.reversename
 import dns.exception
@@ -120,6 +121,20 @@ class Locator(object):
         self.m_cache[key] = (now, maxservers, servers)
         return servers
 
+    def check_domain_controller(self, server, domain, role):
+        """Ensure that `server' is a domain controller for `domain' and has
+        role `role'.
+        """
+        addr = (server, LDAP_PORT)
+        client = NetlogonClient()
+        client.query(addr, domain.upper())
+        result = client.call()
+        if len(result) != 1:
+            return False
+        reply = result[0]
+        result = self._check_domain_controller(reply, role)
+        return result
+
     def _dns_query(self, query, type):
         """Perform a DNS query."""
         self.m_logger.debug('DNS query %s type %s' % (query, type))
@@ -214,35 +229,59 @@ class Locator(object):
                 dict[srv] = True
         return result
 
+    def _extract_addresses_from_netlogon(self, replies):
+        """Return (hostname, port) tuples from a list of netlogon replies."""
+        result = [ r.hostname for r in replies ]
+        return result
+
+    def _check_domain_controller(self, reply, role):
+        """Check that `server' is a domain controller for `domain' and has
+        role `role'.
+        """
+        self.m_logger.debug('Checking controller %s for domain %s role %s' %
+                            (reply.orig_hostname, reply.orig_domain, role))
+        answer = self._dns_query(reply.orig_hostname, 'A')
+        if len(answer) != 1:
+            self.m_logger.error('Forward DNS returned %d entries (need 1)' %
+                                len(anser))
+            return False
+        address = answer[0].address
+        revname = dns.reversename.from_address(address)
+        answer = self._dns_query(revname, 'PTR')
+        if len(answer) != 1:
+            self.m_logger.error('Reverse DNS returned %d entries (need 1)'
+                                % len(answer))
+            return False
+        hostname = answer[0].target.to_text()
+        answer = self._dns_query(hostname, 'A')
+        if len(answer) != 1:
+            self.m_logger.error('Second fwd DNS returned %d entries (need 1)'
+                                % len(answer))
+            return False
+        if answer[0].address != address:
+            self.m_logger.error('Second forward DNS does not match first')
+            return False
+        if role == 'gc' and not (reply.flags & netlogon.SERVER_GC) or \
+                role == 'pdc' and not (reply.flags & netlogon.SERVER_PDC) or \
+                role == 'dc' and not (reply.flags & netlogon.SERVER_LDAP):
+            self.m_logger.error('Role does not match')
+            return False
+        if reply.orig_domain.lower() != reply.domain.lower():
+            self.m_logger.error('Domain does not match')
+            return False
+        self.m_logger.debug('Controller is OK')
+        return True
+
     def _sufficient_domain_controllers(self, replies, role, maxservers):
         """Return True if there are sufficient domain controllers in `replies'
         to satisfy `maxservers'."""
         local = 0
         remote = 0
         for reply in replies:
-            if not hasattr(reply, 'role_match'):
-                if role == 'gc' and not reply.flags & netlogon.SERVER_GC or \
-                        role == 'pdc'and not reply.flags & netlogon.SERVER_PDC:
-                    reply.role_match = False
-                else:
-                    reply.role_match = True
-            if not hasattr(reply, 'reverse_name'):
-                reply.reverse_name = False
-                self.m_logger.debug('checking reverse DNS for %s' %
-                                    reply.orig_hostname)
-                revname = dns.reversename.from_address(reply.address[0])
-                answer = self._dns_query(revname, 'PTR')
-                if len(answer) != 1:
-                    self.m_logger.error('reverse DNS returned %d entries' % 
-                                        len(answer))
-                    continue
-                name = answer[0].target.to_text()
-                if name != reply.orig_hostname:
-                    self.m_logger.error('reverse DNS returned %s' % name)
-                    continue
-                self.m_logger.debug('reverse DNS is OK')
-                reply.reverse_name = True
-            if not reply.role_match or not reply.reverse_name:
+            if not hasattr(reply, 'checked'):
+                checked = self._check_domain_controller(reply, role)
+                reply.checked = checked
+            if not reply.checked:
                 continue
             if reply.client_site == self.m_site:
                 local += 1
@@ -261,9 +300,8 @@ class Locator(object):
         local = []
         remote = []
         for reply in replies:
-            assert hasattr(reply, 'role_match')
-            assert hasattr(reply, 'reverse_name')
-            if not reply.role_match or not reply.reverse_name:
+            assert hasattr(reply, 'checked')
+            if not reply.checked:
                 continue
             if self.m_site == reply.server_site:
                 local.append(reply)
@@ -274,9 +312,4 @@ class Locator(object):
         remote.sort(lambda x,y: cmp(x.timing, y.timing))
         result = local + remote
         result = result[:maxservers]
-        return result
-
-    def _extract_addresses_from_netlogon(self, replies):
-        """Return (hostname, port) tuples from a list of netlogon replies."""
-        result = [ r.hostname for r in replies ]
         return result

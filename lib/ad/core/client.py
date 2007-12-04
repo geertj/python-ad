@@ -20,15 +20,8 @@ from ad.core.object import factory, instance
 from ad.core.creds import Creds
 from ad.core.locate import Locator
 
-# LDAP Constants
-
-SCOPE_BASE = ldap.SCOPE_BASE
-SCOPE_ONELEVEL = ldap.SCOPE_ONELEVEL
-SCOPE_SUBTREE = ldap.SCOPE_SUBTREE
-
-MOD_ADD = ldap.MOD_ADD
-MOD_REPLACE = ldap.MOD_REPLACE
-MOD_DELETE = ldap.MOD_DELETE
+LDAP_PORT = 389
+GC_PORT = 3268
 
 # AD Constants
 
@@ -56,6 +49,11 @@ class Client(object):
         self.m_root = None
         self.m_contexts = None
         self.m_locator = None
+        self.m_connections = None
+
+    def domain(self):
+        """Return the default domain."""
+        return self.m_domain
 
     def _locator(self):
         """Return our resource locator."""
@@ -70,9 +68,25 @@ class Client(object):
             m = 'No current credentials or credentials not activated.'
             raise ADError, m
 
-    def _create_ldap_uri(self, servers):
+    def _fixup_scheme(self, scheme):
+        """Check an LDAP search scheme."""
+        if scheme is None:
+            scheme = 'ldap'
+        elif isinstance(scheme, str):
+            if scheme not in ('ldap', 'gc'):
+                raise ValueError, 'Illegal scheme: %s' % scheme
+        else:
+            raise TypeError, 'Illegal scheme type: %s' % type(scheme)
+        return scheme
+
+    def _create_ldap_uri(self, servers, scheme=None):
         """Return an LDAP uri for the server list `servers'."""
-        parts = [ 'ldap://%s/' % srv for srv in servers ]
+        scheme = self._fixup_scheme(scheme)
+        if scheme == 'ldap':
+            port = LDAP_PORT
+        elif scheme == 'gc':
+            port = GC_PORT
+        parts = [ 'ldap://%s:%d/' % (srv, port) for srv in servers ]
         uri = ' '.join(parts)
         return uri
 
@@ -88,26 +102,6 @@ class Client(object):
             sasl = ldap.sasl.sasl({}, 'GSSAPI')
             ld.sasl_interactive_bind_s('', sasl)
         return ld
-
-    def _ldap_connection(self, context):
-        """Return the (cached) LDAP connection for a naming context."""
-        assert context in self.m_contexts
-        if self.m_contexts[context] is None:
-            locator = self._locator()
-            domain = self.domain_name_from_dn(context)
-            servers = locator.locate_many(domain)
-            uri = self._create_ldap_uri(servers)
-            conn = self._create_ldap_connection(uri)
-            self.m_contexts[context] = conn
-        return self.m_contexts[context]
-
-    def close(self):
-        """Close any active LDAP connection."""
-        for ctx in self.m_contexts:
-            conn = self.m_contexts[ctx]
-            if conn is not None:
-                conn.unbind_s()
-                self.m_contexts[ctx] = None
 
     def domain_name_from_dn(self, dn):
         """Given a DN, return a domain."""
@@ -165,40 +159,63 @@ class Client(object):
         finally:
             conn.unbind_s()
         dn, attrs = result[0]
-        contexts = {}
+        contexts = []
         for nc in attrs['namingContexts']:
             nc = nc.lower()
-            domain = self.domain_name_from_dn(nc)
-            contexts[nc] = None
+            contexts.append(nc)
         self.m_contexts = contexts
 
     def contexts(self):
         """Return a list of all naming contexts."""
         if self.m_contexts is None:
             self._init_contexts()
-        return self.m_contexts.keys()
+        return self.m_contexts
 
     def _resolve_context(self, base):
         """Resolve a base dn to a naming context."""
-        if self.m_contexts is None:
-            self._init_contexts()
         context = ''
         base = base.lower()
-        for ctx in self.m_contexts:
+        for ctx in self.contexts():
             if base.endswith(ctx) and len(ctx) > len(context):
                 context = ctx
-        if not context:
-            m = 'No valid naming context for base %s' % base
-            raise ADError, m
         return context
 
-    def _check_search_attrs(self, attrs):
-        """Check validity of the `attrs' argument to search()."""
-        if not isinstance(attrs, list) or not isinstance(attrs, tuple):
-            raise ADError, 'Expecting sequence of strings.'
-        for item in attrs:
-            if not isinstance(item, str):
-                raise ADError, 'Expecting sequence of strings.'
+    def _ldap_connection(self, base, server=None, scheme=None):
+        """Return the (cached) LDAP connection for a naming context."""
+        context = self._resolve_context(base)
+        scheme = self._fixup_scheme(scheme)
+        if self.m_connections is None:
+            self.m_connections = {}
+        key = (context, server, scheme)
+        if key not in self.m_connections:
+            locator = self._locator()
+            if context == '':
+                assert server != None
+                uri = self._create_ldap_uri([server])
+                bind = False  # No need to bind for rootDSE
+            else:
+                domain = self.domain_name_from_dn(context)
+                if scheme == 'gc':
+                    role = 'gc'
+                elif scheme == 'ldap':
+                    role = 'dc'
+                if server is None:
+                    servers = locator.locate_many(domain, role=role)
+                    uri = self._create_ldap_uri(servers, scheme)
+                else:
+                    if not locator.check_domain_controller(server, domain, role):
+                        raise ADError, 'Unsuitable server provided.'
+                    uri = self._create_ldap_uri([server], scheme)
+                bind = True
+            conn = self._create_ldap_connection(uri, bind)
+            self.m_connections[key] = conn
+        return self.m_connections[key]
+
+    def close(self):
+        """Close any active LDAP connection."""
+        for conn in self.m_connections.values():
+            conn.unbind_s()
+        self.m_connections = None
 
     def _remove_empty_search_entries(self, result):
         """Remove empty search entries from a search result."""
@@ -214,8 +231,7 @@ class Client(object):
         assert mobj is not None
         type, lo, hi = mobj.groups()
         values = attrs[key]
-        context = self._resolve_context(dn)
-        conn = self._ldap_connection(context)
+        conn = self._ldap_connection(dn)
         while hi != '*':
             try:
                 hi = int(hi)
@@ -224,7 +240,7 @@ class Client(object):
                 raise ADError, m
             rqattrs = ('%s;range=%s-*' % (type, hi+1),)
             filter = '(distinguishedName=%s)' % dn
-            result = conn.search_s(context, SCOPE_SUBTREE, filter, rqattrs)
+            result = conn.search_s(dn, ldap.SCOPE_SUBTREE, filter, rqattrs)
             if not result:
                 # Object deleted?
                 break
@@ -252,13 +268,75 @@ class Client(object):
                     self._retrieve_all_ranges(dn, key, attrs)
         return result
 
-    def _create_paged_results_control(self):
-        """Create a paged results control."""
+    def _fixup_filter(self, filter):
+        """Fixup the `filter' argument."""
+        if filter is None:
+            filter = '(objectClass=*)'
+        elif not isinstance(filter, str):
+            raise TypeError, 'Illegal filter type: %s' % type(filter)
+        return filter
+
+    def _fixup_base(self, base):
+        """Fixup an ldap search base."""
+        if base is None:
+            base = self.dn_from_domain_name(self.domain())
+        elif not isinstance(base, str):
+            raise TypeError, 'Illegal search base type: %s' % type(base)
+        return base
+
+    def _fixup_scope(self, scope):
+        """Check the ldap scope `scope'."""
+        if scope is None:
+            scope = ldap.SCOPE_SUBTREE
+        elif scope == 'base':
+            scope = ldap.SCOPE_BASE
+        elif scope == 'onelevel':
+            scope = ldap.SCOPE_ONELEVEL
+        elif scope == 'subtree':
+            scope = ldap.SCOPE_SUBTREE
+        elif isinstance(scope, int):
+            if scope not in (ldap.SCOPE_BASE, ldap.SCOPE_ONELEVEL,
+                             ldap.SCOPE_SUBTREE):
+                raise ValueError, 'Illegal scope: %s' % scope
+        else:
+            raise TypeError, 'Illegal scope type: %s' % type(scope)
+        return scope
+
+    def _fixup_attrs(self, attrs):
+        """Check validity of the `attrs' argument to search()."""
+        if attrs is None:
+            pass
+        elif isinstance(attrs, list) or isinstance(attrs, tuple):
+            for item in attrs:
+                if not isinstance(item, str):
+                    raise TypeError, 'Expecting sequence of strings.'
+        else:
+            raise TypeError, 'Expecting sequence of strings.'
+        return attrs
+
+    def _search_with_paged_results(self, conn, filter, base, scope, attrs):
+        """Perform an ldap search operation with paged results."""
         ctrl = ldap.controls.SimplePagedResultsControl(
                     ldap.LDAP_CONTROL_PAGE_OID, True, (self._pagesize, ''))
-        return ctrl
+        result = []
+        while True:
+            msgid = conn.search_ext(base, scope, filter, attrs,
+                                    serverctrls=[ctrl])
+            type, data, msgid, ctrls = conn.result3(msgid)
+            result += data
+            rctrls = [ c for c in ctrls
+                       if c.controlType == ldap.LDAP_CONTROL_PAGE_OID ]
+            if not rctrls:
+                m = 'Server does not honour paged results.'
+                raise ADError, m
+            est, cookie = rctrls[0].controlValue
+            if not cookie:
+                break
+            ctrl.controlValue = (self._pagesize, cookie)
+        return result
 
-    def search(self, filter=None, base=None, scope=None, attrs=None):
+    def search(self, filter=None, base=None, scope=None, attrs=None,
+               server=None, scheme=None):
         """Search Active Directory and return a list of objects.
 
         The `filter' argument specifies an RFC 2254 search filter. If it is
@@ -268,37 +346,30 @@ class Client(object):
         default scope is 'substree'. `attrs' is the attribute list to
         retrieve. The default is to retrieve all attributes.
         """
-        if filter is None:
-            filter = '(objectClass=*)'
-        if base is None:
-            base = self.dn_from_domain_name(self.domain())
-        if scope is None:
-            scope = SCOPE_SUBTREE
-        if attrs is not None:
-            self._check_search_attrs(attrs)
-        context = self._resolve_context(base)
-        conn = self._ldap_connection(context)
-        ctrl = self._create_paged_results_control()
-        result = []
-        while True:
-            msgid = conn.search_ext(base, scope, filter, attrs,
-                                    serverctrls=[ctrl])
-            type, data, msgid, ctrls = conn.result3(msgid)
-            rctrls = [ c for c in ctrls
-                       if c.controlType == ldap.LDAP_CONTROL_PAGE_OID ]
-            if not rctrls:
-                m = 'Server does not honour paged results.'
+        filter = self._fixup_filter(filter)
+        base = self._fixup_base(base)
+        scope = self._fixup_scope(scope)
+        atrs = self._fixup_attrs(attrs)
+        scheme = self._fixup_scheme(scheme)
+        if base == '':
+            if server is None:
+                m = 'A server must be specified when querying rootDSE'
                 raise ADError, m
-            result += data
-            est, cookie = rctrls[0].controlValue
-            if not cookie:
-                break
-            ctrl.controlValue = (self._pagesize, cookie)
+            if scope != ldap.SCOPE_BASE:
+                m = 'Search scope must be base when querying rootDSE'
+                raise ADError, m
+        conn = self._ldap_connection(base, server, scheme)
+        if base == '':
+            # search rootDSE does not honour paged results
+            result = conn.search_s(base, scope, filter, attrs)
+        else:
+            result = self._search_with_paged_results(conn, filter, base,
+                                                     scope, attrs)
         result = self._remove_empty_search_entries(result)
         result = self._process_range_subtypes(result)
         return result
 
-    def _check_add_list(self, attrs):
+    def _fixup_add_list(self, attrs):
         """Check the `attrs' arguments to add()."""
         if not isinstance(attrs, list) and not isinstance(attrs, tuple):
             raise TypeError, 'Expecting list of 2-tuples %s.'
@@ -314,6 +385,7 @@ class Client(object):
             for val in values:
                 if not isinstance(val, str):
                     raise TypeError, 'List items must be 2-tuple of (str, [str]).'
+        return attrs
 
     def add(self, dn, attrs):
         """Add a new object to Active Directory.
@@ -324,12 +396,23 @@ class Client(object):
         string. The values component is the LDAP attribute values and must be
         a list of strings.
         """
-        self._check_add_list(attrs)
-        context = self._resolve_context(dn)
-        conn = self._ldap_connection(context)
+        attrs = self._fixup_add_list(attrs)
+        conn = self._ldap_connection(dn)
         conn.add_s(dn, attrs)
 
-    def _check_modify_list(self, mods):
+    def _fixup_modify_operation(self, op):
+        """Fixup an ldap modify operation."""
+        if op == 'add':
+            op = ldap.MOD_ADD
+        elif op == 'replace':
+            op = ldap.MOD_REPLACE
+        elif op == 'delete':
+            op = ldap.MOD_DELETE
+        elif op not in (ldap.MOD_ADD, ldap.MOD_REPLACE, ldap.MOD_DELETE):
+            raise ValueError, 'Illegal modify operation: %s' % op
+        return op
+
+    def _fixup_modify_list(self, mods):
         """Check the `mods' argument to modify()."""
         if not isinstance(mods, list) and not isinstance(mods, tuple):
             raise TypeError, 'Expecting list of 3-tuples.'
@@ -337,16 +420,18 @@ class Client(object):
             if not isinstance(item, tuple) and not isinstance(item, list) \
                     or not len(item) == 3:
                 raise TypeError, 'Expecting list of 3-tuples.'
+        result = []
         for op,type,values in mods:
-            if not op in (MOD_ADD, MOD_REPLACE, MOD_DELETE):
-                raise TypeError, 'List items must be 3-tuple of (op, str, [str]).'
+            op = self._fixup_modify_operation(op)
             if not isinstance(type, str):
-                raise TypeError, 'List items must be 2-tuple of (op, str, [str]).'
+                raise TypeError, 'List items must be 3-tuple of (str, str, [str]).'
             if not isinstance(values, list) and not isinstance(values, tuple):
-                raise TypeError, 'List items must be 2-tuple of (op, str, [str]).'
+                raise TypeError, 'List items must be 3-tuple of (str, str, [str]).'
             for val in values:
                 if not isinstance(val, str):
-                    raise TypeError, 'List items must be 2-tuple of (str, [str]).'
+                    raise TypeError, 'List item must be 3-tuple of (str, str, [str]).'
+            result.append((op,type,values))
+        return result
 
     def modify(self, dn, mods):
         """Modify the LDAP object `dn' with `mods'.
@@ -356,15 +441,13 @@ class Client(object):
         attribute name and value a list of strings containing the attribute
         value(s).
         """
-        self._check_modify_list(mods)
-        context = self._resolve_context(dn)
-        conn = self._ldap_connection(context)
+        mods = self._fixup_modify_list(mods)
+        conn = self._ldap_connection(dn)
         conn.modify_s(dn, mods)
 
     def delete(self, dn):
         """Delete the LDAP object referenced by `dn'."""
-        context = self._resolve_context(dn)
-        conn = self._ldap_connection(context)
+        conn = self._ldap_connection(dn)
         conn.delete_s(dn)
 
     def modrdn(self, dn, rdn):
@@ -372,16 +455,5 @@ class Client(object):
 
         `dn' specifies the object, `rdn' is the new RDN.
         """
-        context = self._resolve_context(dn)
-        conn = self._ldap_connection(context)
+        conn = self._ldap_connection(dn)
         conn.modrdn_s(dn, rdn)
-
-    def domain(self):
-        """Return the current domain."""
-        return self.m_domain
-
-    def set_password(self, principal, password):
-        pass
-
-    def change_password(self, principal, oldpw, newpw):
-        pass

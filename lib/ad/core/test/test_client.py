@@ -9,6 +9,7 @@
 from ad.test.base import BaseTest
 from ad.core.object import activate
 from ad.core.client import Client
+from ad.core.locate import Locator
 from ad.core import client as ad
 from ad.core.creds import Creds
 from ad.core.exception import Error as ADError, LDAPError
@@ -71,7 +72,7 @@ class TestADClient(BaseTest):
         client = Client(domain)
         user = self._create_user(client, 'test-usr')
         mods = []
-        mods.append((ad.MOD_REPLACE, 'sAMAccountName', ['test-usr-2']))
+        mods.append(('replace', 'sAMAccountName', ['test-usr-2']))
         client.modify(user, mods)
 
     def test_contexts(self):
@@ -93,7 +94,7 @@ class TestADClient(BaseTest):
         client = Client(domain)
         contexts = client.contexts()
         for ctx in contexts:
-            result = client.search('(objectClass=*)', scope=ad.SCOPE_BASE)
+            result = client.search('(objectClass=*)', scope='base')
             assert len(result) == 1
 
     def _create_group(self, client, name):
@@ -111,17 +112,17 @@ class TestADClient(BaseTest):
 
     def _add_user_to_group(self, client, user, group):
         mods = []
-        mods.append((ad.MOD_DELETE, 'member', [user]))
+        mods.append(('delete', 'member', [user]))
         try:
             client.modify(group, mods)
         except (ADError, LDAPError):
             pass
         mods = []
-        mods.append((ad.MOD_ADD, 'member', [user]))
+        mods.append(('add', 'member', [user]))
         client.modify(group, mods)
 
     def test_incremental_retrieval_of_multivalued_attributes(self):
-        self.require(ad_admin=True)
+        self.require(ad_admin=True, expensive=True)
         domain = self.domain()
         creds = Creds(domain)
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
@@ -138,7 +139,7 @@ class TestADClient(BaseTest):
         assert len(attrs['memberOf']) == 2000
 
     def test_paged_results(self):
-        self.require(ad_admin=True)
+        self.require(ad_admin=True, expensive=True)
         domain = self.domain()
         creds = Creds(domain)
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
@@ -148,3 +149,44 @@ class TestADClient(BaseTest):
             self._create_user(client, 'test-usr-%04d' % i)
         result = client.search('(cn=test-usr-*)')
         assert len(result) == 2000
+
+    def test_search_rootdse(self):
+        self.require(ad_user=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_user_account(), self.ad_user_password())
+        activate(creds)
+        locator = Locator()
+        server = locator.locate(domain)
+        client = Client(domain)
+        result = client.search(base='', scope='base', server=server)
+        assert len(result) == 1
+        dns, attrs = result[0]
+        assert attrs.has_key('supportedControl')
+        assert attrs.has_key('supportedSASLMechanisms')
+
+    def test_search_server(self):
+        self.require(ad_user=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_user_account(), self.ad_user_password())
+        activate(creds)
+        locator = Locator()
+        server = locator.locate(domain)
+        client = Client(domain)
+        result = client.search('(objectClass=user)', server=server)
+        assert len(result) > 1
+
+    def test_search_gc(self):
+        self.require(ad_user=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_user_account(), self.ad_user_password())
+        activate(creds)
+        client = Client(domain)
+        result = client.search('(objectClass=user)', scheme='gc')
+        assert len(result) > 1
+        for res in result:
+            dn, attrs = res
+            # accountExpires is always set, but is not a GC attribute
+            assert 'accountExpires' not in attrs
