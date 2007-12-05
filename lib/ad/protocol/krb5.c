@@ -118,14 +118,158 @@ k5_get_init_creds_keytab(PyObject *self, PyObject *args)
 }
 
 
+static void
+_k5_set_password_error(krb5_data *result_code_string, krb5_data *result_string)
+{
+    char *p1, *p2;
+    
+    p1 = malloc(result_code_string->length+1);
+    if (p1 == NULL)
+    {
+	PyErr_NoMemory();
+	return;
+    }
+    if (result_code_string->data)
+    {
+	strncpy(p1, result_code_string->data, result_code_string->length);
+    }
+    p1[result_code_string->length] = '\000';
+
+    p2 = malloc(result_string->length+1);
+    if (p1 == NULL)
+    {
+	PyErr_NoMemory();
+	return;
+    }
+    if (result_string->data)
+    {
+	strncpy(p1, result_string->data, result_string->length);
+    }
+    p2[result_string->length] = '\000';
+
+    PyErr_Format(k5_error, "%s%s%s", p1, (*p1 && *p2) ? ": " : "", p2);
+
+    free(p1);
+    free(p2);
+}
+
+
+static PyObject *
+k5_set_password(PyObject *self, PyObject *args)
+{
+    int result_code;
+    char *name, *newpass;
+    krb5_context ctx;
+    krb5_error_code code;
+    krb5_principal principal;
+    krb5_data result_code_string, result_string;
+    krb5_ccache ccache;
+
+    if (!PyArg_ParseTuple(args, "ss", &name, &newpass))
+        return NULL;
+
+    /* Initialize parameters. */
+    code = krb5_init_context(&ctx);
+    RETURN_ON_ERROR("krb5_init_context()", code);
+    code = krb5_parse_name(ctx, name, &principal);
+    RETURN_ON_ERROR("krb5_parse_name()", code);
+
+    /* Get credentials */
+    code = krb5_cc_default(ctx, &ccache);
+    RETURN_ON_ERROR("krb5_cc_default()", code);
+
+    /* Set password */
+    code = krb5_set_password_using_ccache(ctx, ccache, newpass, principal,
+					  &result_code, &result_code_string,
+					  &result_string);
+    RETURN_ON_ERROR("krb5_set_password_using_ccache()", code);
+
+    /* Any other error? */
+    if (result_code != 0)
+    {
+	_k5_set_password_error(&result_code_string, &result_string);
+	return NULL;
+    }
+
+    /* Free up results. */
+    if (result_code_string.data != NULL)
+	free(result_code_string.data);
+    if (result_string.data != NULL)
+	free(result_string.data);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+
+static PyObject *
+k5_change_password(PyObject *self, PyObject *args)
+{
+    int result_code;
+    char *name, *oldpass, *newpass;
+    krb5_context ctx;
+    krb5_error_code code;
+    krb5_principal principal;
+    krb5_get_init_creds_opt options;
+    krb5_creds creds;
+    krb5_data result_code_string, result_string;
+
+    if (!PyArg_ParseTuple(args, "sss", &name, &oldpass, &newpass))
+        return NULL;
+
+    /* Initialize parameters. */
+    code = krb5_init_context(&ctx);
+    RETURN_ON_ERROR("krb5_init_context()", code);
+    code = krb5_parse_name(ctx, name, &principal);
+    RETURN_ON_ERROR("krb5_parse_name()", code);
+
+    /* Get credentials using the password. */
+    krb5_get_init_creds_opt_init(&options);
+    krb5_get_init_creds_opt_set_tkt_life(&options, 5*60);
+    krb5_get_init_creds_opt_set_renew_life(&options, 0);
+    krb5_get_init_creds_opt_set_forwardable(&options, 0);
+    krb5_get_init_creds_opt_set_proxiable(&options, 0);
+    memset(&creds, 0, sizeof (creds));
+    code = krb5_get_init_creds_password(ctx, &creds, principal, oldpass,
+					NULL, NULL, 0, "kadmin/changepw",
+					&options);
+    RETURN_ON_ERROR("krb5_get_init_creds_password()", code);
+
+    code = krb5_change_password(ctx, &creds, newpass, &result_code,
+				&result_code_string, &result_string);
+    RETURN_ON_ERROR("krb5_change_password()", code);
+
+    /* Any other error? */
+    if (result_code != 0)
+    {
+	_k5_set_password_error(&result_code_string, &result_string);
+	return NULL;
+    }
+
+    /* Free up results. */
+    if (result_code_string.data != NULL)
+	free(result_code_string.data);
+    if (result_string.data != NULL)
+	free(result_string.data);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+
 static PyMethodDef k5_methods[] = 
 {
     { "get_init_creds_password",
             (PyCFunction) k5_get_init_creds_password, METH_VARARGS },
     { "get_init_creds_keytab",
             (PyCFunction) k5_get_init_creds_keytab, METH_VARARGS },
+    { "set_password",
+            (PyCFunction) k5_set_password, METH_VARARGS },
+    { "change_password",
+            (PyCFunction) k5_change_password, METH_VARARGS },
     { NULL, NULL }
 };
+
 
 void
 initkrb5(void)

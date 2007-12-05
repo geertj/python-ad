@@ -37,13 +37,14 @@ class Creds(object):
         self.m_config = None
         self.m_use_system_ccache = use_system_ccache
         self.m_use_system_config = use_system_config
+        self.m_config_cleanup = []
 
     def __del__(self):
         """Destructor. This releases all currently held credentials and cleans
         up temporary files."""
         self.release()
 
-    def acquire(self, principal, password=None, keytab=None):
+    def acquire(self, principal, password=None, keytab=None, server=None):
         """Acquire credentials for `principal'.
 
         The `principal' argument specifies the principal for which to acquire
@@ -65,9 +66,10 @@ class Creds(object):
             self._init_ccache()
             self._activate_ccache()
         if not self.m_use_system_config:
-            self._init_config()
-            self._resolve_servers_for_domain(domain)
-            self._activate_config()
+            if server is None:
+                self._resolve_servers_for_domain(domain)
+            else:
+                self._set_servers_for_domain(domain, [server])
         try:
             if password is not None:
                 krb5.get_init_creds_password(principal, password)
@@ -109,8 +111,9 @@ class Creds(object):
             return
         assert self.m_ccache is not None
         orig = self._environ('KRB5CCNAME')
-        self._set_environ('KRB5CCNAME', self.m_ccache)
-        self.c_ccache_stack[self.m_ccache] = (True, orig)
+        if orig != self.m_ccache:
+            self._set_environ('KRB5CCNAME', self.m_ccache)
+            self.c_ccache_stack[self.m_ccache] = (True, orig)
 
     def _release_ccache(self):
         """Release the current Kerberos configuration."""
@@ -120,8 +123,8 @@ class Creds(object):
         # class my exist. Therefore we need to keep track whether we have set
         # the current $KRB5CCNAME or someone else. If it is ourselves we are
         # fine, but if not we need to mark that the class who replaced our
-        # value should not point back to us because we are releases those
-        # credentials now.
+        # value should not point back to us when that class releases its
+        # credentials because we are releasing those credentials now.
         assert self.m_ccache in self.c_ccache_stack
         active, orig = self.c_ccache_stack[self.m_ccache]
         assert active
@@ -143,21 +146,39 @@ class Creds(object):
             pass
         self.m_ccache = None
 
-    def _resolve_servers_for_domain(self, domain):
+    def _resolve_servers_for_domain(self, domain, force=False):
         """Resolve domain controllers for a domain."""
         if self.m_use_system_config:
             return
-        if domain in self.m_domains:
+        if domain in self.m_domains and not force:
             return
         locator = factory(Locator)
         result = locator.locate_many(domain)
         self.m_domains[domain] = list(result)
+        # Re-init every time
+        self._init_config()
         self._write_config()
+        self._activate_config()
+
+    def _set_servers_for_domain(self, domain, servers):
+        """Set the servers to use for `domain'."""
+        if self.m_use_system_config:
+            return
+        self.m_domains[domain] = servers
+        self._init_config()
+        self._write_config()
+        self._activate_config()
 
     def _init_config(self):
         """Initialize Kerberos config."""
-        if self.m_config:
-            return
+        if self.m_config and self.m_config in self.c_config_stack:
+            # Delete current config and create one under a new file name. This
+            # seems to be required by the Kerberos libraries that do not
+            # reload the configuration file otherwise.
+            active, orig = self.c_config_stack[self.m_config]
+            self.c_config_stack[self.m_config] = (False, orig)
+            # unlink this config file on activate of new config
+            self.m_config_cleanup.append(self.m_config)
         fd, fname = tempfile.mkstemp()
         os.close(fd)
         self.m_config = fname
@@ -172,7 +193,7 @@ class Creds(object):
                        time.asctime())
             fout.write('[libdefaults]\n')
             fout.write('  default_realm = %s\n' % self.m_domain)
-            fout.write('  dns_lookup_kdc = true\n')
+            fout.write('  dns_lookup_kdc = false\n')
             fout.write('  default_tgs_enctypes = rc4-hmac\n')
             fout.write('  default_tkt_enctypes = rc4-hmac\n')
             fout.write('[realms]\n')
@@ -197,8 +218,15 @@ class Creds(object):
             return
         assert self.m_config is not None
         orig = self._environ('KRB5_CONFIG')
-        self._set_environ('KRB5_CONFIG', self.m_config)
-        self.c_config_stack[self.m_config] = (True, orig)
+        if orig != self.m_config:
+            self._set_environ('KRB5_CONFIG', self.m_config)
+            self.c_config_stack[self.m_config] = (True, orig)
+        for fname in self.m_config_cleanup:
+            try:
+                os.remove(fname)
+            except OSError:
+                pass
+        self.m_config_cleanup = []
 
     def _release_config(self):
         """Release the current Kerberos configuration."""

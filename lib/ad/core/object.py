@@ -17,7 +17,7 @@ def _singleton(cls, *args, **kwargs):
 def instance(cls):
     """Return the single instance of a class. The instance needs to exist."""
     if not hasattr(cls, 'instance'):
-        raise RuntimeError, 'No instance available for %s' % cls
+        return None
     return cls.instance
 
 def factory(cls):

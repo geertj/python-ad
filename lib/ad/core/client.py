@@ -19,16 +19,8 @@ from ad.core.exception import Error as ADError
 from ad.core.object import factory, instance
 from ad.core.creds import Creds
 from ad.core.locate import Locator
-
-LDAP_PORT = 389
-GC_PORT = 3268
-
-# AD Constants
-
-CTRL_ACCOUNT_DISABLED = 0x2
-CTRL_NORMAL_ACCOUNT = 0x200
-CTRL_WORKSTATION_ACCOUNT = 0x1000
-CTRL_DONT_EXPIRE_PASSWORD = 0x10000
+from ad.core.constant import LDAP_PORT, GC_PORT
+from ad.protocol import krb5
 
 
 class Client(object):
@@ -61,12 +53,13 @@ class Client(object):
             self.m_locator = factory(Locator)
         return self.m_locator
 
-    def _check_credentials(self):
-        """Ensure we have AD credentials."""
+    def _credentials(self):
+        """Return our current AD credentials."""
         creds = instance(Creds)
-        if not creds.principal():
+        if creds is None or not creds.principal():
             m = 'No current credentials or credentials not activated.'
             raise ADError, m
+        return creds
 
     def _fixup_scheme(self, scheme):
         """Check an LDAP search scheme."""
@@ -98,7 +91,6 @@ class Client(object):
         ld.sizelimit = self._sizelimit
         ld.referrals = self._referrals
         if bind:
-            self._check_credentials()
             sasl = ldap.sasl.sasl({}, 'GSSAPI')
             ld.sasl_interactive_bind_s('', sasl)
         return ld
@@ -110,10 +102,10 @@ class Client(object):
         domain = []
         for part in parts:
             type,value,flags = part[0]  # weird API..
-            if type != 'dc':
+            if type.lower() != 'dc':
                 break
             domain.insert(0, value)
-        return '.'.join(domain)
+        return '.'.join(domain).upper()
 
     def dn_from_domain_name(self, name):
         """Given a domain name, return a DN."""
@@ -150,18 +142,25 @@ class Client(object):
         locator = self._locator()
         servers = locator.locate_many(self.m_domain)
         uri = self._create_ldap_uri(servers)
-        conn = self._create_ldap_connection(uri, bind=False)
+        conn = self._create_ldap_connection(uri)
+        base = 'cn=Partitions,cn=Configuration,%s' % \
+                self.dn_from_domain_name(root)
+        filter = '(objectClass=crossRef)'
         try:
-            attrs = ('namingContexts',)
-            result = conn.search_s('', ldap.SCOPE_BASE, attrlist=attrs)
+            attrs = ('nCName',)
+            result = conn.search_s(base, ldap.SCOPE_ONELEVEL, filter, attrs)
             if not result:
                 raise ADError, 'Could not search rootDSE of forest root.'
         finally:
             conn.unbind_s()
-        dn, attrs = result[0]
         contexts = []
-        for nc in attrs['namingContexts']:
-            nc = nc.lower()
+        for res in result:
+            dn, attrs = res
+            nc = attrs['nCName'][0].lower()
+            if nc.startswith('dc=domaindnszones') or \
+                    nc.startswith('dc=forestdnszones') or \
+                    nc.startswith('dc=tapi3directory'):
+                continue
             contexts.append(nc)
         self.m_contexts = contexts
 
@@ -179,7 +178,7 @@ class Client(object):
             if base.endswith(ctx) and len(ctx) > len(context):
                 context = ctx
         return context
-
+    
     def _ldap_connection(self, base, server=None, scheme=None):
         """Return the (cached) LDAP connection for a naming context."""
         context = self._resolve_context(base)
@@ -206,6 +205,8 @@ class Client(object):
                     if not locator.check_domain_controller(server, domain, role):
                         raise ADError, 'Unsuitable server provided.'
                     uri = self._create_ldap_uri([server], scheme)
+                creds = self._credentials()
+                creds._resolve_servers_for_domain(domain)
                 bind = True
             conn = self._create_ldap_connection(uri, bind)
             self.m_connections[key] = conn
@@ -232,6 +233,7 @@ class Client(object):
         type, lo, hi = mobj.groups()
         values = attrs[key]
         conn = self._ldap_connection(dn)
+        base = self._resolve_context(dn)
         while hi != '*':
             try:
                 hi = int(hi)
@@ -240,9 +242,10 @@ class Client(object):
                 raise ADError, m
             rqattrs = ('%s;range=%s-*' % (type, hi+1),)
             filter = '(distinguishedName=%s)' % dn
-            result = conn.search_s(dn, ldap.SCOPE_SUBTREE, filter, rqattrs)
+            result = conn.search_s(base, ldap.SCOPE_SUBTREE, filter, rqattrs)
             if not result:
-                # Object deleted?
+                # Object deleted? Assume it was and return no further
+                # attributes.
                 break
             dn2, attrs2 = result[0]
             for key2 in attrs2:
@@ -387,7 +390,7 @@ class Client(object):
                     raise TypeError, 'List items must be 2-tuple of (str, [str]).'
         return attrs
 
-    def add(self, dn, attrs):
+    def add(self, dn, attrs, server=None):
         """Add a new object to Active Directory.
         
         The object is createdwith a distinguished name `dn' and with attribute
@@ -397,7 +400,7 @@ class Client(object):
         a list of strings.
         """
         attrs = self._fixup_add_list(attrs)
-        conn = self._ldap_connection(dn)
+        conn = self._ldap_connection(dn, server)
         conn.add_s(dn, attrs)
 
     def _fixup_modify_operation(self, op):
@@ -433,7 +436,7 @@ class Client(object):
             result.append((op,type,values))
         return result
 
-    def modify(self, dn, mods):
+    def modify(self, dn, mods, server=None):
         """Modify the LDAP object `dn' with `mods'.
         
         The `mods' parameter must be a list of 3-tuples (op,type,value), with
@@ -442,18 +445,54 @@ class Client(object):
         value(s).
         """
         mods = self._fixup_modify_list(mods)
-        conn = self._ldap_connection(dn)
+        conn = self._ldap_connection(dn, server)
         conn.modify_s(dn, mods)
 
-    def delete(self, dn):
+    def delete(self, dn, server=None):
         """Delete the LDAP object referenced by `dn'."""
-        conn = self._ldap_connection(dn)
+        conn = self._ldap_connection(dn, server)
         conn.delete_s(dn)
 
-    def modrdn(self, dn, rdn):
+    def modrdn(self, dn, rdn, server=None):
         """Change the RDN of an object in Active Direcotry.
 
         `dn' specifies the object, `rdn' is the new RDN.
         """
-        conn = self._ldap_connection(dn)
+        conn = self._ldap_connection(dn, server)
         conn.modrdn_s(dn, rdn)
+
+    def set_password(self, principal, password, server=None):
+        """Set the password of `principal' to `password'."""
+        if '@' in principal:
+            principal, domain = principal.split('@')
+            domain = domain.upper()
+        else:
+            domain = self.domain()
+        principal = '%s@%s' % (principal, domain)
+        creds = self._credentials()
+        if server is not None:
+            creds._set_servers_for_domain(domain, [server])
+        try:
+            krb5.set_password(principal, password)
+        except krb5.Error, err:
+            raise ADError, str(err)
+        if server is not None:
+            creds._resolve_servers_for_domain(domain, force=True)
+
+    def change_password(self, principal, oldpass, newpass, server=None):
+        """Chagne the password of `principal' to `password'."""
+        if '@' in principal:
+            principal, domain = principal.split('@')
+            domain = domain.upper()
+        else:
+            domain = self.domain()
+        principal = '%s@%s' % (principal, domain)
+        creds = self._credentials()
+        if server is not None:
+            creds._set_servers_for_domain(domain, [server])
+        try:
+            krb5.change_password(principal, oldpass, newpass)
+        except krb5.Error, err:
+            raise ADError, str(err)
+        if server is not None:
+            creds._resolve_servers_for_domain(domain, force=True)
