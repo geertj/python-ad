@@ -82,27 +82,73 @@ class TestADClient(BaseTest):
         client.modify(user, mods)
         self._delete_user(client, user)
 
-    def test_contexts(self):
+    def test_forest(self):
         self.require(ad_user=True)
         domain = self.domain()
         creds = Creds(domain)
         creds.acquire(self.ad_user_account(), self.ad_user_password())
         activate(creds)
         client = Client(domain)
-        contexts = client.contexts()
-        assert len(contexts) >= 3
+        forest = client.forest()
+        assert forest
+        assert forest.isupper()
 
-    def test_search_all_contexts(self):
+    def test_domains(self):
         self.require(ad_user=True)
         domain = self.domain()
         creds = Creds(domain)
         creds.acquire(self.ad_user_account(), self.ad_user_password())
         activate(creds)
         client = Client(domain)
-        contexts = client.contexts()
-        for ctx in contexts:
-            result = client.search('(objectClass=*)', base=ctx, scope='base')
+        domains = client.domains()
+        for domain in domains:
+            assert domain
+            assert domain.isupper()
+
+    def test_naming_contexts(self):
+        self.require(ad_user=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_user_account(), self.ad_user_password())
+        activate(creds)
+        client = Client(domain)
+        naming_contexts = client.naming_contexts()
+        assert len(naming_contexts) >= 3
+
+    def test_search_all_domains(self):
+        self.require(ad_user=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_user_account(), self.ad_user_password())
+        activate(creds)
+        client = Client(domain)
+        domains = client.domains()
+        for domain in domains:
+            base = client.dn_from_domain_name(domain)
+            result = client.search('(objectClass=*)', base=base, scope='base')
             assert len(result) == 1
+
+    def test_search_schema(self):
+        self.require(ad_user=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_user_account(), self.ad_user_password())
+        activate(creds)
+        client = Client(domain)
+        base = client.schema_base()
+        result = client.search('(objectClass=*)', base=base, scope='base')
+        assert len(result) == 1
+
+    def test_search_configuration(self):
+        self.require(ad_user=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_user_account(), self.ad_user_password())
+        activate(creds)
+        client = Client(domain)
+        base = client.configuration_base()
+        result = client.search('(objectClass=*)', base=base, scope='base')
+        assert len(result) == 1
 
     def _delete_group(self, client, dn, server=None):
         try:
@@ -217,16 +263,16 @@ class TestADClient(BaseTest):
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
         activate(creds)
         client = Client(domain)
-        user = self._create_user(client, 'test-usr')
-        principal = 'test-usr@%s' % domain
+        user = self._create_user(client, 'test-usr-1')
+        principal = 'test-usr-1@%s' % domain
         client.set_password(principal, 'Pass123')
         mods = []
         ctrl = AD_USERCTRL_NORMAL_ACCOUNT
         mods.append(('replace', 'userAccountControl', [str(ctrl)]))
         client.modify(user, mods)
         creds = Creds(domain)
-        creds.acquire('test-usr', 'Pass123')
-        assert py.test.raises(ADError, creds.acquire, 'test-usr', 'Pass321')
+        creds.acquire('test-usr-1', 'Pass123')
+        assert py.test.raises(ADError, creds.acquire, 'test-usr-1', 'Pass321')
         self._delete_user(client, user)
 
     def test_set_password_target_pdc(self):
@@ -238,16 +284,16 @@ class TestADClient(BaseTest):
         client = Client(domain)
         locator = Locator()
         pdc = locator.locate(domain, role='pdc')
-        user = self._create_user(client, 'test-usr', server=pdc)
-        principal = 'test-usr@%s' % domain
+        user = self._create_user(client, 'test-usr-2', server=pdc)
+        principal = 'test-usr-2@%s' % domain
         client.set_password(principal, 'Pass123', server=pdc)
         mods = []
         ctrl = AD_USERCTRL_NORMAL_ACCOUNT
         mods.append(('replace', 'userAccountControl', [str(ctrl)]))
         client.modify(user, mods, server=pdc)
         creds = Creds(domain)
-        creds.acquire('test-usr', 'Pass123', server=pdc)
-        assert py.test.raises(ADError, creds.acquire, 'test-usr', 'Pass321',
+        creds.acquire('test-usr-2', 'Pass123', server=pdc)
+        assert py.test.raises(ADError, creds.acquire, 'test-usr-2', 'Pass321',
                               server=pdc)
         self._delete_user(client, user, server=pdc)
 
@@ -258,8 +304,8 @@ class TestADClient(BaseTest):
         creds.acquire(self.ad_admin_account(), self.ad_admin_password())
         activate(creds)
         client = Client(domain)
-        user = self._create_user(client, 'test-usr')
-        principal = 'test-usr@%s' % domain
+        user = self._create_user(client, 'test-usr-3')
+        principal = 'test-usr-3@%s' % domain
         client.set_password(principal, 'Pass123')
         mods = []
         ctrl = AD_USERCTRL_NORMAL_ACCOUNT
@@ -268,8 +314,8 @@ class TestADClient(BaseTest):
         client.modify(user, mods)
         client.change_password(principal, 'Pass123', 'Pass456')
         creds = Creds(domain)
-        creds.acquire('test-usr', 'Pass456')
-        assert py.test.raises(ADError, creds.acquire, 'test-usr', 'Pass321')
+        creds.acquire('test-usr-3', 'Pass456')
+        assert py.test.raises(ADError, creds.acquire, 'test-usr-3', 'Pass321')
         self._delete_user(client, user)
 
     def test_change_password_target_pdc(self):
@@ -281,8 +327,8 @@ class TestADClient(BaseTest):
         client = Client(domain)
         locator = Locator()
         pdc = locator.locate(domain, role='pdc')
-        user = self._create_user(client, 'test-usr', server=pdc)
-        principal = 'test-usr@%s' % domain
+        user = self._create_user(client, 'test-usr-4', server=pdc)
+        principal = 'test-usr-4@%s' % domain
         client.set_password(principal, 'Pass123', server=pdc)
         mods = []
         ctrl = AD_USERCTRL_NORMAL_ACCOUNT
@@ -291,7 +337,7 @@ class TestADClient(BaseTest):
         client.modify(user, mods, server=pdc)
         client.change_password(principal, 'Pass123', 'Pass456', server=pdc)
         creds = Creds(domain)
-        creds.acquire('test-usr', 'Pass456', server=pdc)
-        assert py.test.raises(ADError, creds.acquire, 'test-usr', 'Pass321',
+        creds.acquire('test-usr-4', 'Pass456', server=pdc)
+        assert py.test.raises(ADError, creds.acquire, 'test-usr-4', 'Pass321',
                               server=pdc)
         self._delete_user(client, user, server=pdc)

@@ -37,15 +37,13 @@ class Client(object):
 
     def __init__(self, domain):
         """Constructor."""
-        self.m_domain = domain
-        self.m_root = None
-        self.m_contexts = None
         self.m_locator = None
         self.m_connections = None
-
-    def domain(self):
-        """Return the default domain."""
-        return self.m_domain
+        self.m_naming_contexts = None
+        self.m_domain = self.dn_from_domain_name(domain)
+        self.m_forest = None
+        self.m_schema = None
+        self.m_configuration = None
 
     def _locator(self):
         """Return our resource locator."""
@@ -112,39 +110,70 @@ class Client(object):
         parts = name.split('.')
         dn = [ 'dc=%s' % p for p in parts ]
         dn = ','.join(dn)
-        return dn
+        return dn.lower()
 
-    def root(self):
-        """Return the root of the forest."""
-        if self.m_root:
-            return self.m_root
+    def _init_forest(self):
+        """Initialize forest global settings."""
+        if self.m_forest is not None:
+            return
         locator = self._locator()
-        servers = locator.locate_many(self.m_domain)
+        servers = locator.locate_many(self.domain())
         uri = self._create_ldap_uri(servers)
         conn = self._create_ldap_connection(uri, bind=False)
         try:
-            attrs = ('rootDomainNamingContext',)
+            attrs = ('rootDomainNamingContext', 'schemaNamingContext',
+                     'configurationNamingContext')
             result = conn.search_s('', ldap.SCOPE_BASE, attrlist=attrs)
             if not result:
                 raise ADError, 'Could not search rootDSE of domain.'
         finally:
             conn.unbind_s()
         dn, attrs = result[0]
-        nc = attrs['rootDomainNamingContext'][0]
-        self.m_root = self.domain_name_from_dn(nc)
-        return self.m_root
+        self.m_forest = attrs['rootDomainNamingContext'][0]
+        self.m_schema = attrs['schemaNamingContext'][0]
+        self.m_configuration = attrs['configurationNamingContext'][0]
 
-    def _init_contexts(self):
-        """Initialize naming contexts."""
-        if self.m_contexts is not None:
+    def domain(self):
+        """Return the domain name of the current domain."""
+        return self.domain_name_from_dn(self.m_domain)
+
+    def domain_base(self):
+        """Return the base DN of the domain."""
+        return self.m_domain
+
+    def forest(self):
+        """Return the domain name of the forest root."""
+        if self.m_forest is None:
+            self._init_forest()
+        return self.domain_name_from_dn(self.m_forest)
+
+    def forest_base(self):
+        """Return the base DN of the forest root."""
+        if self.m_forest is None:
+            self._init_forest()
+        return self.m_forest
+
+    def schema_base(self):
+        """Return the base DN of the schema naming_context."""
+        if self.m_schema is None:
+            self._init_forest()
+        return self.m_schema
+
+    def configuration_base(self):
+        """Return the base DN of the configuration naming_context."""
+        if self.m_configuration is None:
+            self._init_forest()
+        return self.m_configuration
+
+    def _init_naming_contexts(self):
+        """Initialize naming naming_contexts."""
+        if self.m_naming_contexts is not None:
             return
-        root = self.root()
         locator = self._locator()
-        servers = locator.locate_many(self.m_domain)
+        servers = locator.locate_many(self.domain())
         uri = self._create_ldap_uri(servers)
         conn = self._create_ldap_connection(uri)
-        base = 'cn=Partitions,cn=Configuration,%s' % \
-                self.dn_from_domain_name(root)
+        base = 'cn=Partitions,%s' % self.configuration_base()
         filter = '(objectClass=crossRef)'
         try:
             attrs = ('nCName',)
@@ -153,47 +182,56 @@ class Client(object):
                 raise ADError, 'Could not search rootDSE of forest root.'
         finally:
             conn.unbind_s()
-        contexts = []
+        naming_contexts = []
         for res in result:
             dn, attrs = res
             nc = attrs['nCName'][0].lower()
+            naming_contexts.append(nc)
+        self.m_naming_contexts = naming_contexts
+
+    def naming_contexts(self):
+        """Return a list of all naming_contexts."""
+        if self.m_naming_contexts is None:
+            self._init_naming_contexts()
+        return self.m_naming_contexts
+
+    def domains(self):
+        """Return a list of all domains in the forest."""
+        domains = []
+        for nc in self.naming_contexts():
             if nc.startswith('dc=domaindnszones') or \
                     nc.startswith('dc=forestdnszones') or \
-                    nc.startswith('dc=tapi3directory'):
+                    nc.startswith('dc=tapi3directory') or \
+                    nc.startswith('cn=schema') or \
+                    nc.startswith('cn=configuration'):
                 continue
-            contexts.append(nc)
-        self.m_contexts = contexts
+            domains.append(self.domain_name_from_dn(nc))
+        return domains
 
-    def contexts(self):
-        """Return a list of all naming contexts."""
-        if self.m_contexts is None:
-            self._init_contexts()
-        return self.m_contexts
-
-    def _resolve_context(self, base):
-        """Resolve a base dn to a naming context."""
-        context = ''
+    def _resolve_naming_context(self, base):
+        """Resolve a base dn to a directory naming_context."""
+        naming_context = ''
         base = base.lower()
-        for ctx in self.contexts():
-            if base.endswith(ctx) and len(ctx) > len(context):
-                context = ctx
-        return context
+        for nc in self.naming_contexts():
+            if base.endswith(nc) and len(nc) > len(naming_context):
+                naming_context = nc
+        return naming_context
     
     def _ldap_connection(self, base, server=None, scheme=None):
-        """Return the (cached) LDAP connection for a naming context."""
-        context = self._resolve_context(base)
+        """Return the (cached) LDAP connection for a naming naming_context."""
+        naming_context = self._resolve_naming_context(base)
         scheme = self._fixup_scheme(scheme)
         if self.m_connections is None:
             self.m_connections = {}
-        key = (context, server, scheme)
+        key = (naming_context, server, scheme)
         if key not in self.m_connections:
             locator = self._locator()
-            if context == '':
+            if naming_context == '':
                 assert server != None
                 uri = self._create_ldap_uri([server])
                 bind = False  # No need to bind for rootDSE
             else:
-                domain = self.domain_name_from_dn(context)
+                domain = self.domain_name_from_dn(naming_context)
                 if scheme == 'gc':
                     role = 'gc'
                 elif scheme == 'ldap':
@@ -233,7 +271,7 @@ class Client(object):
         type, lo, hi = mobj.groups()
         values = attrs[key]
         conn = self._ldap_connection(dn)
-        base = self._resolve_context(dn)
+        base = self._resolve_naming_context(dn)
         while hi != '*':
             try:
                 hi = int(hi)
