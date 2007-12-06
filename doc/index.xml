@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<book xmlns="http://docbook.org/ns/docbook"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+<info>
+  <title>Python-AD reference manual</title>
+  <author><firstname>Geert</firstname> <surname>Jansen</surname> </author>
+  <copyright><year>2007</year> <holder>Geert Jansen</holder> </copyright>
+</info>
+<xi:include href="preface.xml"/>
+<xi:include href="reference.xml"/>
+<xi:include href="license.xml"/>
+</book>

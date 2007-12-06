@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<chapter>
+  <?dbhtml filename="reference.html"?>
+  <title>API Reference</title>
+
+  <section>
+  <?dbhtml filename="credentials.html"?>
+  <title>Credential Management</title>
+
+  <para>
+  Most Active Directory operations require authentication. The default
+  authentication mechanism in AD is Kerberos. Unfortunately, it has always
+  been difficult to use Kerberos authentication with AD. It required for
+  example to have a properly configured <filename>/etc/krb5.conf</filename>
+  listing the realms you want to use and the Kerbers servers for those realms.
+  </para>
+
+  <para>
+  Fortunately Python-AD simplifies AD credential management significantly. It
+  does not require any system configuration and all functionality is embedded
+  in a single class named <classname>Creds</classname>. This class is
+  available from the Python package <package>ad</package>
+  </para>
+
+  <programlisting>
+  from ad import Creds
+  </programlisting>
+
+  <para>
+  The constructor for the <classname>Creds</classname> class takes one
+  argument: <parameter>domain</parameter>. This parameter specifies the
+  default AD domain for credential management.
+  </para>
+
+  <programlisting>
+  class Creds(object):
+      """Credential management."""
+
+      def __init__(self, domain):
+          """Constructor."""
+  </programlisting>
+
+  <para>
+  The <parameter>domain</parameter> parameter is used as a default when
+  principals are used without domain name. Credentials in any other domains
+  can be acquired as long as the domain is part of the same AD forest.
+  </para>
+
+  <para>
+  The <classname>Creds</classname> class has the following methods:
+  </para>
+
+  <programlisting>
+
+      def acquire(self, principal, password=None, keytab=None, server=None):
+          """Acquire credentials."""
+  </programlisting>
+
+  <para>
+  The <function>acquire()</function> function acquires credentials for
+  principal <parameter>principal</parameter>. The principal can either a
+  unqualified principal, in which case the default domain is assumed, or a
+  principal in the form of <varname>user@domain</varname> in which case
+  <varname>domain</varname> must be a domain in the same AD forest as the
+  default domain. The <parameter>password</parameter> contains the password to
+  the principal. If no password is given, a keytab will be used. This keytab
+  is can be specified by the <parameter>keytab</parameter> parameter. If this
+  parameter is not present either, the default system keytab is used.  The
+  <parameter>server</parameter> argument overrides the default Kerberos server
+  to acquire credentials from. If this argument is not given, a suitable
+  Kerberos server is autodetected.
+  </para>
+
+  <programlisting>
+
+      def principal(self):
+          """Return the current principal."""
+  </programlisting>
+  
+  <para>
+  The <function>principal()</function> method returns the current principal,
+  i.e. the principal that was last succesfully used in a call to
+  <function>acquire()</function>.
+  </para>
+
+  <programlisting>
+
+      def release(self):
+          """Release all credentials."""
+  </programlisting>
+
+  <para>
+  The <function>release()</function> method releases the currently held
+  credentials.  It is called automatically from the
+  <classname>Creds</classname> destructor.
+  </para>
+
+  <para>
+  Once credentials are acquired with <function>acquire()</function>, they need
+  to be activated before they can be used. This is required because
+  credentials are a process-global resource and they need to be installed in a
+  place where other classes in Python-AD will be able to find them. Credential
+  activation is done by calling a function called
+  <function>activate()</function> as follows:
+  </para>
+
+  <programlisting>
+  from ad import activate
+  activate(creds)
+  </programlisting>
+
+  <para>
+  The code fragment above will make the <varname>creds</varname> object the
+  globally active credentials. The <function>activate()</function> can be
+  called multiple times on different objects. The semantics are that the
+  object on which <function>activate()</function> was called last will be the
+  active credentials. If active credentials are released by calling the
+  <function>release()</function> method of a <classname>Creds</classname>
+  instance, then the credentials that were previously active are activated. If
+  no previously activated credentials exist, there will be no credentials
+  available after this call.
+  </para>
+
+  </section>
+
+  <section>
+  <?dbhtml filename="client.html"?>
+  <title>AD Client Interface</title>
+
+  <para>
+  The actual operations on Active Directory are grouped in a single class
+  called <classname>Client</classname>. This class is available from the
+  <package>ad</package> package.
+  </para>
+
+  <programlisting>
+  from ad import Client
+  </programlisting>
+
+  <para>
+  The constructor to the <classname>Client</classname> class takes one
+  argument: the domain.
+  </para>
+
+  <programlisting>
+  class Client(object):
+      """AD client interface."""
+
+      def __init__(self, domain):
+        """Constructor."""
+  </programlisting>
+
+  <para>
+  The <parameter>domain</parameter> parameter sets the default domain for the
+  <classname>Client</classname> class. As with the
+  <classname>Creds</classname> class, the requirement to specify the domain
+  does not mean that operations through the client are limited to the
+  specified domain: all operations are available to any domain that is part of
+  the same forest.
+  </para>
+
+  <para>
+  Instances of the <classname>Client</classname> class will try to access the
+  globally installed <classname>Creds</classname> instance. Therefore you must
+  ensure that credentials are available before you use any functionality in
+  this class.
+  </para>
+
+  <para>
+  The following methods are provided by the <classname>Client</classname>
+  class:
+  </para>
+
+  <programlisting>
+
+      def domain_name_from_dn(self, dn):
+          """Given a DN, return a domain."""
+  </programlisting>
+
+  <para>
+  The function <function>domain_name_from_dn()</function> is a utility
+  function that, given an LDAP distinguished name, will return the Active
+  Directory domain name. For example, if the <parameter>dn</parameter>
+  parameter is set to <literal>cn=users,dc=freeadi,dc=org</literal>, the
+  return value of this method will be <literal>FREEADI.ORG</literal>.
+  </para>
+
+  <programlisting>
+
+      def dn_from_domain_name(self, name):
+          """Given a domain name, return a DN."""
+  </programlisting>
+
+  <para>
+  The function <function>dn_from_domain_name()</function> is the inverse of
+  <function>domain_name_from_dn()</function>. For example, if
+  <parameter>name</parameter> is set to <literal>LINUX.FREEADI.ORG</literal>,
+  the return value of this method will be
+  <literal>dc=linux,dc=freeadi,dc=org</literal>.
+  </para>
+
+  <programlisting>
+
+      def domain(self):
+          """Return the domain name of the current domain."""
+  </programlisting>
+
+  <para>
+  This method returns the current default domain.
+  </para>
+
+  <programlisting>
+
+      def domain_base(self):
+          """Return the base DN of the domain."""
+  </programlisting>
+
+  <para>
+  The method <function>domain_base()</function> returns the LDAP base DN for
+  the curent domain. If <literal>client</literal> is an instance of
+  <classname>Client</classname>, then this is equivalent to
+  <literal>client.dn_from_domain_name(client.domain())</literal>.
+  </para>
+
+  <programlisting>
+      def forest(self):
+          """Return the domain name of the forest root."""
+  </programlisting>
+
+  <para>
+  This method returns the root of the forest for the current domain. In case
+  the current domain is a child domain, this will return something different
+  than the <function>domain()</function> method.
+  </para>
+
+  <programlisting>
+      def forest_base(self):
+          """Return the base DN of the forest root."""
+  </programlisting>
+
+  <para>
+  The <function>forest_base()</function> method returns the LDAP base DN for
+  the forest. This function is equivalent to
+  <literal>client.dn_from_domain_name(client.forest())</literal>.
+  </para>
+
+  <programlisting>
+      def schema_base(self):
+          """Return the base DN of the schema naming_context."""
+  </programlisting>
+
+  <para>
+  This method returns the LDAP base DN for the schema naming context for the
+  Active Directory forest.
+  </para>
+
+  <programlisting>
+      def configuration_base(self):
+          """Return the base DN of the configuration naming_context."""
+  </programlisting>
+
+  <para>
+  This method returns the LDAP base DN for the configuration namign context
+  for the Active Directory forest.
+  </para>
+
+  <programlisting>
+      def naming_contexts(self):
+          """Return a list of all naming_contexts."""
+  </programlisting>
+
+  <para>
+  The <function>naming_contexts()</function> returns a list of all naming
+  contexts in the forest. The term naming context is the Microsoft name for a
+  directory partition. Each naming context is present on one or multiple
+  domain controllers, and each domain controller normally has multiple naming
+  contexts.
+  </para>
+
+  <programlisting>
+      def domains(self):
+          """Return a list of all domains in the forest."""
+  </programlisting>
+
+  <para>
+  This function returns a list of all domains that are present in the forest.
+  </para>
+
+  <programlisting>
+      def close(self):
+          """Close any active LDAP connection."""
+  </programlisting>
+  
+  <para>
+  The <function>close()</function> closes all currently open connections to
+  the Active Directory.
+  </para>
+
+  <programlisting>
+      def search(self, filter=None, base=None, scope=None, attrs=None,
+                 server=None, scheme=None):
+          """Search the Active Directory."""
+  </programlisting>
+
+  <para>
+  The <function>search()</function> method is probably the most important
+  function in Python-AD. It searches the Active Directory and returns a list
+  of objects that match the query. The <parameter>filter</parameter> argument
+  specifies the LDAP search filter. If it is absent, the default filter is
+  <literal>(objectClass=*)</literal>. The <parameter>base</parameter>
+  arguments gives the LDAP search base. This search base must either be blank
+  (<literal>''</literal>) in which case the rootDSE is searched, or it must be
+  within one of the naming contexts of the forest. The
+  <parameter>scope</parameter> parameter must be a string of the value
+  <literal>'base'</literal>, <literal>'onelevel'</literal> or
+  <literal>'subtree'</literal>. For compatibility reasons, the
+  <literal>SCOPE_*</literal> constants as defined by  Python-LDAP are accepted
+  as well.  The <parameter>attrs</parameter> parameter specifies the attributes
+  to request. If it is given, it must be a list of strings. If it is not
+  specified, then the default is to request all attributes. The
+  <parameter>server</parameter> parameter is another optional parameter that
+  specifies the server to bind to. Normally, Python-AD operates in
+  <emphasis>serverless binding</emphasis> mode. In this mode, a suitable
+  domain controller is selected automatically. In some situation this may not
+  be desidered however and for these situations the
+  <parameter>server</parameter> can be used. Finally the
+  <parameter>scheme</parameter> parameter specifies the search scheme. It must
+  be one of <literal>'ldap'</literal> (the default) or <literal>'gc'</literal>
+  to search the global catalog.
+  </para>
+
+  <para>
+  The return value of <function>search()</function> is a list of 2-tuples.
+  Each tuple consists of a distinguished name and a dictionary of attributes.
+  The dictionary has string keys (the attribute names) and a list of strings
+  as it values (the attribute values).
+  </para>
+
+  <programlisting>
+      def add(self, dn, attrs, server=None):
+          """Add a new object to Active Directory."""
+  </programlisting>
+
+  <para>
+  The <function>add()</function> function adds an object to the directory. The
+  parameter <parameter>dn</parameter> specifies the distinguished name of the
+  attribute to be added. The parameter <parameter>attrs</parameter> specifies
+  the attributes of the object. It must be a list of 2-tuples, with the first
+  tuple entry the attribute name, and the second tuple entry a list of strings
+  containing the attribute values. The <parameter>server</parameter> parameter
+  can be used to override the default binding behaviour and has the same
+  meaning as for <function>search()</function>.
+  </para>
+
+  <programlisting>
+      def modify(self, dn, mods, server=None):
+          """Modify an LDAP object."""
+  </programlisting>
+
+  <para>
+  The <function>modify()</function> method modifies an existing object in the
+  directory. The <parameter>dn</parameter> parameter specifies the
+  distinguished name of the object modify, while <parameter>mods</parameter>
+  specifies the modifications. The latter must be a list of 3-tuples. Each
+  tuple consists of the modify operation (one of <literal>'add'</literal>,
+  <literal>'replace'</literal> or <literal>'delete'</literal> to add, replace
+  or delete an attribute value respectively -- the Python-LDAP
+  <literal>MOD_*</literal> constants are supported for compatibility), the
+  attribute name, and the attribute value. The latter must be a list of
+  strings. The <parameter>server</parameter> parameter can be used to override
+  the default binding behaviour and has the same meaning as for
+  <function>search()</function>.
+  </para>
+
+  <programlisting>
+      def delete(self, dn, server=None):
+          """Delete the LDAP object referenced by `dn'."""
+  </programlisting>
+
+  <para>
+  The <function>delete()</function> method removes an object from the
+  directory. The <parameter>dn</parameter> parameter specifies the
+  distinguished name of the object to remove. The <parameter>server</parameter>
+  parameter can be used to override the default binding behaviour and has the
+  same meaning as for <function>search()</function>.
+  </para>
+
+  <programlisting>
+      def modrdn(self, dn, rdn, server=None):
+          """Change the RDN of an object in Active Direcotry."""
+  </programlisting>
+
+  <para>
+  The <function>modrdn()</function> method modifies the relative distinuished
+  name of the LDAP object with distinguished name <parameter>dn</parameter> to
+  become <parameter>rdn</parameter>. The <parameter>server</parameter>
+  parameter has the same meaning as for <function>search()</function>.
+  </para>
+
+  <programlisting>
+      def set_password(self, principal, password, server=None):
+          """Set the password of `principal' to `password'."""
+  </programlisting>
+
+  <para>
+  This function sets the password for <parameter>principal</parameter> to
+  <parameter>password</parameter>. The <parameter>server</parameter> parameter
+  can again be used to override the default server binding as for the
+  <function>search()</function> method.
+  </para>
+
+  <programlisting>
+      def change_password(self, principal, oldpass, newpass, server=None):
+          """Change the password of `principal' to `password'."""
+  </programlisting>
+
+  <para>
+  This function changes the password for principal
+  <parameter>principal</parameter>. The old password must be given in
+  <parameter>oldpass</parameter> and the new password in
+  <parameter>newpass</parameter>.
+  </para>
+
+  </section>
+
+  <section>
+  <?dbhtml filename="locator.html"?>
+  <title>Resource Location</title>
+
+  <para>
+  Resource location is an problem that is normally handled transparently by
+  Python-AD. In the default situation, domain controllers are looked up
+  automatically by a global instance of the <classname>Locator</classname>
+  class. It is possible however to use this class directly. This is most
+  useful when targetting a specific domain controller with the
+  <parameter>server</parameter> argument that many methods of the
+  <classname>Client</classname> class accept.
+  </para>
+
+
+  The <classname>Locator</classname> class is available from the
+  <package>ad</package> package:
+
+  <programlisting>
+  from ad import Locator
+  </programlisting>
+
+  <para>
+  The constructor takes one optional parameter: the site.
+  </para>
+
+  <programlisting>
+    class Locator(object):
+        """Locate domain controllers.
+
+        def __init__(self, site=None):
+            """Constructor."""
+  </programlisting>
+
+  <para>
+  The <parameter>site</parameter> specifies the AD site the current system is
+  in. Normally this value is autodetected, but in some situations you may want
+  to override this.
+  </para>
+
+  <para>
+  The <classname>Locator</classname> class defines the following methods:
+  </para>
+
+  <programlisting>
+      def locate(self, domain, role=None):
+          """Locate one domain controller."""
+  </programlisting>
+
+  <para>
+  The <function>locate()</function> method locates one domain controller for
+  the domain <parameter>domain</parameter>. The optional parameter
+  <parameter>role</parameter>, if given, specifies the desired role of the
+  domain controller. This can be one of <literal>'dc'</literal>,
+  <literal>'gc'</literal> or <literal>'pdc'</literal> for a normal domain
+  controller, a global catalog, or the domain controller with the primary
+  domain controller emulator role respectively. The default is to locate an
+  ordinary domain controller. The return value of this method is a string
+  containing the host name of the domain controller. If no domain controller
+  is found, an exception is raised.
+  </para>
+
+  <programlisting>
+      def locate_many(self, domain, role=None, maxservers=None):
+          """Locate a list of up to `maxservers' of domain controllers."""
+  </programlisting>
+
+  <para>
+  This method locates up to <parameter>maxservers</parameter> domain
+  controllers. The <parameter>domain</parameter> and
+  <parameter>role</parameter> parameters are as for
+  <function>locate()</function>. The return value is a list of strings
+  containing the host names of the selected domain controllers. If no domain
+  controllers are found, an empty list is returned.
+  </para>
+
+  </section>
+
+  <section>
+  <?dbhtml filename="error.html"?>
+  <title>Error Handling</title>
+
+  Two exceptions are defined for error handling. It is recommended to import
+  the exception as per the code fragment below:
+
+  <programlisting>
+  from ad import Error as ADError
+  from ad import LDAPError
+  </programlisting>
+
+  The <classname>ADError</classname> exception is raised for all errors that
+  are encountered by Python-AD. The <classname>LDAPError</classname> exception
+  is imported from Python-LDAP and is raised when an exception is raised by
+  that module. Therefore, to ensure that all exceptions are caught, you always
+  need to capture both exceptions, as illustrated by the example below:
+
+  <programlisting>
+  client = Client(domain)
+  try:
+      client.add(dn, attrs)
+  except (ADError, LDAPError):
+      pass
+  </programlisting>
+
+  </section>
+
+</chapter>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<preface xmlns:xlink="http://www.w3.org/1999/xlink">
+  <?dbhtml filename="preface.html"?>
+
+  <title>Foreword</title>
+
+  <para>
+  This is the reference manual for Python-AD. It is the definitive reference
+  for the Python-AD API. Other information on Python-AD, such as download
+  instructions, installation instructions, and a tuturial, can be found on the
+  <link xlink:href="http://www.boskant.nl/trac/python-ad/">Python-AD project
+  page</link>.
+  </para>
+
+</preface>
