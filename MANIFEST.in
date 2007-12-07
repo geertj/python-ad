@@ -1,6 +1,6 @@
 include README LICENSE AUTHORS MANIFEST.in
-include lib *.py *.c
-include tut *.py
-include doc *.xml Makefile
+recursive-include lib *.py *.c
+recursive-include tut *.py
+recursive-include doc *.xml Makefile
 include setup.py env.py gentab.py
 include test.conf.example
