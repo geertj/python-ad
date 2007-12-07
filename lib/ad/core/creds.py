@@ -23,7 +23,7 @@ class Creds(object):
     c_config_stack = {}
     c_ccache_stack = {}
 
-    def __init__(self, domain, use_system_ccache=False, use_system_config=False):
+    def __init__(self, domain, use_system_config=False):
         """Constructor.
 
         The `domain' parameter specifies the default domain. The default
@@ -35,7 +35,6 @@ class Creds(object):
         self.m_principal = None
         self.m_ccache = None
         self.m_config = None
-        self.m_use_system_ccache = use_system_ccache
         self.m_use_system_config = use_system_config
         self.m_config_cleanup = []
 
@@ -43,6 +42,17 @@ class Creds(object):
         """Destructor. This releases all currently held credentials and cleans
         up temporary files."""
         self.release()
+
+    def load(self):
+        """Load credentials from the OS."""
+        ccache = krb5.cc_default()
+        if not os.access(ccache, os.R_OK):
+            raise Error, 'No ccache found'
+        self.m_principal = krb5.cc_get_principal(ccache)
+        self._init_ccache()
+        krb5.cc_copy_creds(ccache, self.m_ccache)
+        self._activate_ccache()
+        self._resolve_servers_for_domain(self.m_domain)
 
     def acquire(self, principal, password=None, keytab=None, server=None):
         """Acquire credentials for `principal'.
@@ -62,9 +72,8 @@ class Creds(object):
         else:
             domain = self.m_domain
         principal = '%s@%s' % (principal, domain)
-        if not self.m_use_system_ccache:
-            self._init_ccache()
-            self._activate_ccache()
+        self._init_ccache()
+        self._activate_ccache()
         if not self.m_use_system_config:
             if server is None:
                 self._resolve_servers_for_domain(domain)
@@ -107,8 +116,6 @@ class Creds(object):
 
     def _activate_ccache(self):
         """Active our private credential cache."""
-        if self.m_use_system_ccache:
-            return
         assert self.m_ccache is not None
         orig = self._environ('KRB5CCNAME')
         if orig != self.m_ccache:
@@ -117,7 +124,7 @@ class Creds(object):
 
     def _release_ccache(self):
         """Release the current Kerberos configuration."""
-        if self.m_use_system_ccache or not self.m_ccache:
+        if not self.m_ccache:
             return
         # Things are complicated by the fact that multiple instances of this
         # class my exist. Therefore we need to keep track whether we have set

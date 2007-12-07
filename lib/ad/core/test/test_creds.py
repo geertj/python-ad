@@ -65,6 +65,19 @@ class TestCreds(BaseTest):
         pattern = '.*krbtgt/%s@%s' % (domain.upper(), domain.upper())
         assert child.expect([pattern]) == 0
 
+    def test_load(self):
+        self.require(ad_user=True)
+        domain = self.domain().upper()
+        principal = '%s@%s' % (self.ad_user_account(), domain)
+        self.acquire_credentials(principal, self.ad_user_password())
+        creds = ADCreds(domain)
+        creds.load()
+        assert creds.principal().lower() == principal.lower()
+        ccache, princ, creds = self.list_credentials()
+        assert princ.lower() == principal.lower()
+        assert len(creds) > 0
+        assert creds[0] == 'krbtgt/%s@%s' % (domain, domain)
+
     def test_acquire_multi(self):
         self.require(ad_user=True)
         domain = self.domain()

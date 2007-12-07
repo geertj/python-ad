@@ -1,11 +1,9 @@
 from ad import Client, Creds, activate
 
 domain = 'freeadi.org'
-user = 'Administrator'
-password = 'Pass123'
 
 creds = Creds(domain)
-creds.acquire(user, password)
+creds.load()
 activate(creds)
 
 client = Client(domain)

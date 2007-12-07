@@ -74,6 +74,18 @@
 
   <programlisting>
 
+      def load(self):
+          """Load credentials from the OS."""
+  </programlisting>
+
+  <para>
+  The function <function>load()</function> loads credentials from the default
+  operating system credentials store. It raises an exception in case no
+  credentials are available.
+  </para>
+
+  <programlisting>
+
       def principal(self):
           """Return the current principal."""
   </programlisting>

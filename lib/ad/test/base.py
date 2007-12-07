@@ -157,6 +157,45 @@ class BaseTest(object):
             raise Error, m
         return child.before
 
+    def acquire_credentials(self, principal, password, ccache=None):
+        if ccache is None:
+            ccache = ''
+        else:
+            ccache = '-c %s' % ccache
+        child = pexpect.spawn('kinit %s %s' % (principal, ccache))
+        child.expect(':')
+        child.sendline(password)
+        child.expect(pexpect.EOF)
+        assert not child.isalive()
+        if child.exitstatus != 0:
+            m = 'Command kinit exited with status %s' % child.exitstatus
+            raise Error, m
+
+    def list_credentials(self, ccache=None):
+        if ccache is None:
+            ccache = ''
+        child = pexpect.spawn('klist %s' % ccache)
+        try:
+            child.expect('Ticket cache: ([a-zA-Z0-9_/.:-]+)\r\n')
+        except pexpect.EOF:
+            m = 'Command klist exited with status %s' % child.exitstatus
+            raise Error, m
+        ccache = child.match.group(1)
+        child.expect('Default principal: ([a-zA-Z0-9_/.:@-]+)\r\n')
+        principal = child.match.group(1)
+        creds = []
+        while True:
+            i = child.expect(['\r\n', pexpect.EOF,
+                              '\d\d/\d\d/\d\d \d\d:\d\d:\d\d\s+' \
+                              '\d\d/\d\d/\d\d \d\d:\d\d:\d\d\s+' \
+                              '([a-zA-Z0-9_/.:@-]+)\r\n'])
+            if i == 0:
+                continue
+            elif i == 1:
+                break
+            creds.append(child.match.group(1))
+        return ccache, principal, creds
+
     def _iptables_supported(self):
         if self.c_iptables is None:
             try:

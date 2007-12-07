@@ -257,6 +257,111 @@ k5_change_password(PyObject *self, PyObject *args)
 }
 
 
+static PyObject *
+k5_cc_default(PyObject *self, PyObject *args)
+{
+    krb5_context ctx;
+    krb5_error_code code;
+    krb5_ccache ccache;
+    const char *name;
+    PyObject *ret;
+
+    code = krb5_init_context(&ctx);
+    RETURN_ON_ERROR("krb5_init_context()", code);
+    code = krb5_cc_default(ctx, &ccache);
+    RETURN_ON_ERROR("krb5_cc_default()", code);
+    name = krb5_cc_get_name(ctx, ccache);
+    if (name == NULL)
+    {
+	PyErr_Format(k5_error, "krb5_cc_default() returned NULL");
+	return NULL;
+    }
+
+    ret = PyString_FromString(name);
+    if (ret == NULL)
+	return ret;
+
+    code = krb5_cc_close(ctx, ccache);
+    RETURN_ON_ERROR("krb5_cc_close()", code);
+    krb5_free_context(ctx);
+
+    return ret;
+}
+
+static PyObject *
+k5_cc_copy_creds(PyObject *self, PyObject *args)
+{
+    krb5_context ctx;
+    char *namein, *nameout;
+    krb5_error_code code;
+    krb5_ccache ccin, ccout;
+    krb5_principal principal;
+
+    if (!PyArg_ParseTuple( args, "ss", &namein, &nameout))
+	return NULL;
+
+    code = krb5_init_context(&ctx);
+    RETURN_ON_ERROR("krb5_init_context()", code);
+    code = krb5_cc_resolve(ctx, namein, &ccin);
+    RETURN_ON_ERROR("krb5_cc_resolve()", code);
+    code = krb5_cc_get_principal(ctx, ccin, &principal);
+    RETURN_ON_ERROR("krb5_cc_get_principal()", code);
+
+    code = krb5_cc_resolve(ctx, nameout, &ccout);
+    RETURN_ON_ERROR("krb5_cc_resolve()", code);
+    code = krb5_cc_initialize(ctx, ccout, principal);
+    RETURN_ON_ERROR("krb5_cc_get_initialize()", code);
+    code = krb5_cc_copy_creds(ctx, ccin, ccout);
+    RETURN_ON_ERROR("krb5_cc_copy_creds()", code);
+
+    code = krb5_cc_close(ctx, ccin);
+    RETURN_ON_ERROR("krb5_cc_close()", code);
+    code = krb5_cc_close(ctx, ccout);
+    RETURN_ON_ERROR("krb5_cc_close()", code);
+    krb5_free_principal(ctx, principal);
+    krb5_free_context(ctx);
+
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+
+static PyObject *
+k5_cc_get_principal(PyObject *self, PyObject *args)
+{
+    krb5_context ctx;
+    char *ccname, *name;
+    krb5_error_code code;
+    krb5_ccache ccache;
+    krb5_principal principal;
+    PyObject *ret;
+
+    if (!PyArg_ParseTuple( args, "s", &ccname))
+	return NULL;
+
+    code = krb5_init_context(&ctx);
+    RETURN_ON_ERROR("krb5_init_context()", code);
+    code = krb5_cc_resolve(ctx, ccname, &ccache);
+    RETURN_ON_ERROR("krb5_cc_resolve()", code);
+    code = krb5_cc_get_principal(ctx, ccache, &principal);
+    RETURN_ON_ERROR("krb5_cc_get_principal()", code);
+    code = krb5_unparse_name(ctx, principal, &name);
+    RETURN_ON_ERROR("krb5_unparse_name()", code);
+
+    ret = PyString_FromString(name);
+    if (ret == NULL)
+	return ret;
+
+    code = krb5_cc_close(ctx, ccache);
+    RETURN_ON_ERROR("krb5_cc_close()", code);
+    krb5_free_unparsed_name(ctx, name);
+    krb5_free_principal(ctx, principal);
+    krb5_free_context(ctx);
+
+    return ret;
+}
+
+
 static PyMethodDef k5_methods[] = 
 {
     { "get_init_creds_password",
@@ -267,6 +372,12 @@ static PyMethodDef k5_methods[] =
             (PyCFunction) k5_set_password, METH_VARARGS },
     { "change_password",
             (PyCFunction) k5_change_password, METH_VARARGS },
+    { "cc_default",
+	    (PyCFunction) k5_cc_default, METH_VARARGS },
+    { "cc_copy_creds",
+	    (PyCFunction) k5_cc_copy_creds, METH_VARARGS },
+    { "cc_get_principal",
+	    (PyCFunction) k5_cc_get_principal, METH_VARARGS },
     { NULL, NULL }
 };
 
