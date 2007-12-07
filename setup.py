@@ -10,7 +10,7 @@ from distutils.core import setup, Extension
 
 
 setup(
-    name = 'Python-AD',
+    name = 'python-ad',
     version = '0.8',
     description = 'An AD client library for Python',
     author = 'Geert Jansen',
