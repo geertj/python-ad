@@ -491,13 +491,23 @@ class Client(object):
         conn = self._ldap_connection(dn, server)
         conn.delete_s(dn)
 
-    def modrdn(self, dn, rdn, server=None):
+    def modrdn(self, dn, newrdn, delold=True, server=None):
         """Change the RDN of an object in Active Direcotry.
 
-        `dn' specifies the object, `rdn' is the new RDN.
+        `dn' specifies the object, `newrdn' is the new RDN. The new RDN must
+        be in the format of "rdn=value". If `delold' is True, the old value
+        of the RDN is deleted, otherwise it is retained.
+        """
+        self.rename(dn, newrdn, delold=delold, server=server)
+
+    def rename(self, dn, newrdn, newsuperior=None, delold=True, server=None):
+        """Rename an object in AD, possibly moving it to another point in
+        the directory. The `dn', `newrdn' and `delold' arguments are as with
+        modrdn(). If the `newsuperior' argument is specified, it must be a
+        DN and the object is moved there.
         """
         conn = self._ldap_connection(dn, server)
-        conn.modrdn_s(dn, rdn)
+        conn.rename_s(dn, newrdn, newsuperior, delold)
 
     def set_password(self, principal, password, server=None):
         """Set the password of `principal' to `password'."""

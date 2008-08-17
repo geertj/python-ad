@@ -399,15 +399,31 @@
   </para>
 
   <programlisting>
-      def modrdn(self, dn, rdn, server=None):
+      def modrdn(self, dn, newrdn, delold=True, server=None):
           """Change the RDN of an object in Active Direcotry."""
   </programlisting>
 
   <para>
   The <function>modrdn()</function> method modifies the relative distinuished
   name of the LDAP object with distinguished name <parameter>dn</parameter> to
-  become <parameter>rdn</parameter>. The <parameter>server</parameter>
-  parameter has the same meaning as for <function>search()</function>.
+  the value specified by the <parameter>newrdn</parameter>, which must be in
+  the form of <literal>"attr=value"</literal>. The
+  <parameter>delold</parameter> specifies whether the old RDN value is
+  retained or not. The <parameter>server</parameter> parameter has the same
+  meaning as for <function>search()</function>.
+  </para>
+
+  <programlisting>
+      def rename(self, dn, newrdn, newsuperior=None, delold=True, server=None):
+          """Change the RDN of an object in Active Directory, and optionally
+          move it to a new part of the tree."""
+  </programlisting>
+
+  <para>
+  The <function>rename()</function> method is like
+  <function>modrdn()</function> but is also allows the object to be moved to a
+  new place in the directory by means of the
+  <parameter>newsuperior</parameter> parameter.
   </para>
 
   <programlisting>

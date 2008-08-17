@@ -30,11 +30,14 @@ class TestADClient(BaseTest):
         result = client.search('(objectClass=user)')
         assert len(result) > 1
 
-    def _delete_user(self, client, dn, server=None):
-        try:
-            client.delete(dn, server=server)
-        except (ADError, LDAPError):
-            pass
+    def _delete_user(self, client, name, server=None):
+        # Delete any user that may conflict with a newly to be created user
+        filter = '(|(cn=%s)(sAMAccountName=%s)(userPrincipalName=%s))' % \
+                 (name, name, '%s@%s' % (name, client.domain().upper()))
+        result = client.search('(&(objectClass=user)(sAMAccountName=%s))' % name,
+                               server=server)
+        for res in result:
+            client.delete(res[0], server=server)
 
     def _create_user(self, client, name, server=None):
         attrs = []
@@ -45,7 +48,22 @@ class TestADClient(BaseTest):
         attrs.append(('userAccountControl', [str(ctrl)]))
         attrs.append(('objectClass', ['user']))
         dn = 'cn=%s,cn=users,%s' % (name, client.dn_from_domain_name(client.domain()))
-        self._delete_user(client, dn, server=server)
+        self._delete_user(client, name, server=server)
+        client.add(dn, attrs, server=server)
+        return dn
+
+    def _delete_obj(self, client, dn, server=None):
+        try:
+            client.delete(dn, server=server)
+        except (ADError, LDAPError):
+            pass
+
+    def _create_ou(self, client, name, server=None):
+        attrs = []
+        attrs.append(('objectClass', ['organizationalUnit']))
+        attrs.append(('ou', [name]))
+        dn = 'ou=%s,%s' % (name, client.dn_from_domain_name(client.domain()))
+        self._delete_obj(client, dn, server=server)
         client.add(dn, attrs, server=server)
         return dn
 
@@ -57,7 +75,7 @@ class TestADClient(BaseTest):
         activate(creds)
         client = Client(domain)
         user = self._create_user(client, 'test-usr')
-        self._delete_user(client, user)
+        self._delete_obj(client, user)
 
     def test_delete(self):
         self.require(ad_admin=True)
@@ -80,7 +98,44 @@ class TestADClient(BaseTest):
         mods = []
         mods.append(('replace', 'sAMAccountName', ['test-usr-2']))
         client.modify(user, mods)
-        self._delete_user(client, user)
+        self._delete_obj(client, user)
+
+    def test_modrdn(self):
+        self.require(ad_admin=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_admin_account(), self.ad_admin_password())
+        activate(creds)
+        client = Client(domain)
+        result = client.search('(&(objectClass=user)(sAMAccountName=test-usr))')
+        if result:
+            client.delete(result[0][0])
+        user = self._create_user(client, 'test-usr')
+        client.modrdn(user, 'cn=test-usr2')
+        result = client.search('(&(objectClass=user)(cn=test-usr2))')
+        assert len(result) == 1
+
+    def test_rename(self):
+        self.require(ad_admin=True)
+        domain = self.domain()
+        creds = Creds(domain)
+        creds.acquire(self.ad_admin_account(), self.ad_admin_password())
+        activate(creds)
+        client = Client(domain)
+        result = client.search('(&(objectClass=user)(sAMAccountName=test-usr))')
+        if result:
+            client.delete(result[0][0])
+        user = self._create_user(client, 'test-usr')
+        client.rename(user, 'cn=test-usr2')
+        result = client.search('(&(objectClass=user)(cn=test-usr2))')
+        assert len(result) == 1
+        user = result[0][0]
+        ou = self._create_ou(client, 'test-ou')
+        client.rename(user, 'cn=test-usr', ou)
+        newdn = 'cn=test-usr,%s' % ou
+        result = client.search('(&(objectClass=user)(cn=test-usr))')
+        assert len(result) == 1
+        assert result[0][0].lower() == newdn.lower()
 
     def test_forest(self):
         self.require(ad_user=True)
@@ -195,7 +250,7 @@ class TestADClient(BaseTest):
         dn, attrs = result[0]
         assert attrs.has_key('memberOf')
         assert len(attrs['memberOf']) == 2000
-        self._delete_user(client, user)
+        self._delete_obj(client, user)
         for group in groups:
             self._delete_group(client, group)
 
@@ -213,7 +268,7 @@ class TestADClient(BaseTest):
         result = client.search('(cn=test-usr-*)')
         assert len(result) == 2000
         for user in users:
-            self._delete_user(client, user)
+            self._delete_obj(client, user)
 
     def test_search_rootdse(self):
         self.require(ad_user=True)
@@ -273,7 +328,7 @@ class TestADClient(BaseTest):
         creds = Creds(domain)
         creds.acquire('test-usr-1', 'Pass123')
         assert py.test.raises(ADError, creds.acquire, 'test-usr-1', 'Pass321')
-        self._delete_user(client, user)
+        self._delete_obj(client, user)
 
     def test_set_password_target_pdc(self):
         self.require(ad_admin=True)
@@ -295,7 +350,7 @@ class TestADClient(BaseTest):
         creds.acquire('test-usr-2', 'Pass123', server=pdc)
         assert py.test.raises(ADError, creds.acquire, 'test-usr-2', 'Pass321',
                               server=pdc)
-        self._delete_user(client, user, server=pdc)
+        self._delete_obj(client, user, server=pdc)
 
     def test_change_password(self):
         self.require(ad_admin=True)
@@ -316,7 +371,7 @@ class TestADClient(BaseTest):
         creds = Creds(domain)
         creds.acquire('test-usr-3', 'Pass456')
         assert py.test.raises(ADError, creds.acquire, 'test-usr-3', 'Pass321')
-        self._delete_user(client, user)
+        self._delete_obj(client, user)
 
     def test_change_password_target_pdc(self):
         self.require(ad_admin=True)
@@ -340,4 +395,4 @@ class TestADClient(BaseTest):
         creds.acquire('test-usr-4', 'Pass456', server=pdc)
         assert py.test.raises(ADError, creds.acquire, 'test-usr-4', 'Pass321',
                               server=pdc)
-        self._delete_user(client, user, server=pdc)
+        self._delete_obj(client, user, server=pdc)
