@@ -285,11 +285,13 @@ class Client(object):
                     continue
                 if not reply:
                     continue
-                reply.orig_hostname = hostname
-                reply.orig_domain = domain
-                reply.address = addr
+                reply.q_hostname = hostname
+                reply.q_port = port
+                reply.q_domain = domain
+                reply.q_msgid = msgid
+                reply.q_address = addr
                 timing = time.time() - begin
-                reply.timing = timing
+                reply.q_timing = timing
                 replies.append(reply)
         return replies
 

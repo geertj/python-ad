@@ -229,7 +229,9 @@ class TestClient(BaseTest):
             assert len(res.netbios_hostname) > 0
             assert len(res.client_site) > 0
             assert len(res.server_site) > 0
-            assert res.timing >= 0.0
+            assert (res.q_hostname, res.q_port) in addrs
+            assert res.q_domain.lower() == domain.lower()
+            assert res.q_timing >= 0.0
 
     def test_network_failure(self):
         self.require(ad_user=True, local_admin=True, firewall=True)

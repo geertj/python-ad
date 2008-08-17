@@ -239,8 +239,8 @@ class Locator(object):
         role `role'.
         """
         self.m_logger.debug('Checking controller %s for domain %s role %s' %
-                            (reply.orig_hostname, reply.orig_domain, role))
-        answer = self._dns_query(reply.orig_hostname, 'A')
+                            (reply.q_hostname, reply.q_domain, role))
+        answer = self._dns_query(reply.q_hostname, 'A')
         if len(answer) != 1:
             self.m_logger.error('Forward DNS returned %d entries (need 1)' %
                                 len(anser))
@@ -266,7 +266,7 @@ class Locator(object):
                 role == 'dc' and not (reply.flags & netlogon.SERVER_LDAP):
             self.m_logger.error('Role does not match')
             return False
-        if reply.orig_domain.lower() != reply.domain.lower():
+        if reply.q_domain.lower() != reply.domain.lower():
             self.m_logger.error('Domain does not match')
             return False
         self.m_logger.debug('Controller is OK')
@@ -307,9 +307,15 @@ class Locator(object):
                 local.append(reply)
             else:
                 remote.append(reply)
-        local.sort(lambda x,y: candidates.index((x.orig_hostname, x.port) -
-                               candidates.index(y.orig_hostname, y.port)))
-        remote.sort(lambda x,y: cmp(x.timing, y.timing))
+        local.sort(lambda x,y: cmp(candidates.index((x.q_hostname, x.q_port)),
+                                   candidates.index((y.q_hostname, y.q_port))))
+        remote.sort(lambda x,y: cmp(x.q_timing, y.q_timing))
+        self.m_logger.debug('Local DCs: %s' % ', '.join(['%s:%s' %
+                                (x.q_hostname, x.q_port) for x in local]))
+        self.m_logger.debug('Remote DCs: %s' % ', '.join(['%s:%s' %
+                                (x.q_hostname, x.q_port) for x in remote]))
         result = local + remote
         result = result[:maxservers]
+        self.m_logger.debug('Selected DCs: %s' % ', '.join(['%s:%s' %
+                                (x.q_hostname, x.q_port) for x in result]))
         return result
