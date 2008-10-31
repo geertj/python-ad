@@ -12,8 +12,8 @@ import sys
 import tempfile
 import pexpect
 import logging
-import py.test
 
+from nose import SkipTest
 from ConfigParser import ConfigParser
 
 
@@ -24,6 +24,7 @@ class Error(Exception):
 class BaseTest(object):
     """Base class for Python-AD tests."""
 
+    @classmethod
     def setup_class(cls):
         config = ConfigParser()
         fname = os.environ.get('FREEADI_TEST_CONFIG')
@@ -35,18 +36,17 @@ class BaseTest(object):
         cls.c_config = config
         cls.c_basedir = os.path.dirname(fname)
         logger = logging.getLogger('ad')
-        handler = logging.StreamHandler()
+        handler = logging.StreamHandler(sys.stdout)
         format = '%(levelname)s [%(name)s] %(message)s'
         formatter = logging.Formatter(format)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         logger.setLevel(logging.DEBUG)
         cls.c_iptables = None
-
-    def setup_method(cls, method):
         cls.c_tempfiles = []
 
-    def teardown_method(cls, method):
+    @classmethod
+    def teardown_class(cls):
         for fname in cls.c_tempfiles:
             try:
                 os.unlink(fname)
@@ -86,28 +86,28 @@ class BaseTest(object):
             local_admin = True
         config = self.config()
         if ad_user and not config.getboolean('test', 'readonly_ad_tests'):
-            py.test.skip('test disabled by configuration')
+            raise SkipTest, 'test disabled by configuration'
             if not config.get('test', 'domain'):
-                py.test.skip('ad tests enabled but no domain given')
+                raise SkipTest, 'ad tests enabled but no domain given'
             if not config.get('test', 'ad_user_account') or \
                     not config.get('test', 'ad_user_password'):
-                py.test.skip('readonly ad tests enabled but no user/pw given')
+                raise SkipTest, 'readonly ad tests enabled but no user/pw given'
         if local_admin:
             if not config.getboolean('test', 'intrusive_local_tests'):
-                py.test.skip('test disabled by configuration')
+                raise SkipTest, 'test disabled by configuration'
             if not config.get('test', 'local_admin_account') or \
                     not config.get('test', 'local_admin_password'):
-                py.test.skip('intrusive local tests enabled but no user/pw given')
+                raise SkipTest, 'intrusive local tests enabled but no user/pw given'
         if ad_admin:
             if not config.getboolean('test', 'intrusive_ad_tests'):
-                py.test.skip('test disabled by configuration')
+                raise SkipTest, 'test disabled by configuration'
             if not config.get('test', 'ad_admin_account') or \
                     not config.get('test', 'ad_admin_password'):
-                py.test.skip('intrusive ad tests enabled but no user/pw given')
+                raise SkipTest, 'intrusive ad tests enabled but no user/pw given'
         if firewall and not self._iptables_supported():
-            py.test.skip('iptables/conntrack not available')
+            raise SkipTest, 'iptables/conntrack not available'
         if expensive and not config.getboolean('test', 'expensive_tests'):
-            py.test.skip('test disabled by configuration')
+            raise SkipTest, 'test disabled by configuration'
 
     def domain(self):
         config = self.config()

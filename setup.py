@@ -6,8 +6,7 @@
 # Python-AD is copyright (c) 2007 by the Python-AD authors. See the file
 # "AUTHORS" for a complete overview.
 
-from distutils.core import setup, Extension
-
+from setuptools import setup, Extension
 
 setup(
     name = 'python-ad',
@@ -16,8 +15,14 @@ setup(
     author = 'Geert Jansen',
     author_email = 'geert@boskant.nl',
     url = 'http://www.boskant.nl/trac/python-ad',
+    license = 'MIT',
+    classifiers = ['Development Status :: 4 - Beta',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python'],
     package_dir = {'': 'lib'},
-    packages = ['ad', 'ad.core', 'ad.protocol', 'ad.util', 'ad.test'],
+    packages = ['ad', 'ad.core', 'ad.protocol', 'ad.util'],
     ext_modules = [Extension('ad.protocol.krb5', ['lib/ad/protocol/krb5.c'],
-                             libraries=['krb5'])]
+                             libraries=['krb5'])],
+    test_suite = 'nose.collector'
 )

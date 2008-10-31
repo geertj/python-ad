@@ -6,7 +6,7 @@
 # Python-AD is copyright (c) 2007 by the Python-AD authors. See the file
 # "AUTHORS" for a complete overview.
 
-import py.test
+from nose.tools import assert_raises
 from ad.protocol import ldapfilter
 
 
@@ -106,25 +106,25 @@ class TestLDAPFilterParser(object):
     def test_error_incomplete_term(self):
         parser = ldapfilter.Parser()
         filt = '('
-        py.test.raises(ldapfilter.Error, parser.parse, filt)
+        assert_raises(ldapfilter.Error, parser.parse, filt)
         filt = '(type'
-        py.test.raises(ldapfilter.Error, parser.parse, filt)
+        assert_raises(ldapfilter.Error, parser.parse, filt)
         filt = '(type='
-        py.test.raises(ldapfilter.Error, parser.parse, filt)
+        assert_raises(ldapfilter.Error, parser.parse, filt)
         filt = '(type=)'
-        py.test.raises(ldapfilter.Error, parser.parse, filt)
+        assert_raises(ldapfilter.Error, parser.parse, filt)
 
     def test_error_not_multi_term(self):
         parser = ldapfilter.Parser()
         filt = '(!(type=value)(type2=value2))'
-        py.test.raises(ldapfilter.Error, parser.parse, filt)
+        assert_raises(ldapfilter.Error, parser.parse, filt)
 
     def test_error_illegal_operator(self):
         parser = ldapfilter.Parser()
         filt = '($(type=value)(type2=value2))'
-        py.test.raises(ldapfilter.Error, parser.parse, filt)
+        assert_raises(ldapfilter.Error, parser.parse, filt)
 
     def test_error_illegal_character(self):
         parser = ldapfilter.Parser()
         filt = '(type=val*e)'
-        py.test.raises(ldapfilter.Error, parser.parse, filt)
+        assert_raises(ldapfilter.Error, parser.parse, filt)

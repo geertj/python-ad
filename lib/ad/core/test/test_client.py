@@ -6,7 +6,7 @@
 # Python-AD is copyright (c) 2007 by the Python-AD authors. See the file
 # "AUTHORS" for a complete overview.
 
-import py.test
+from nose.tools import assert_raises
 
 from ad.test.base import BaseTest
 from ad.core.object import activate
@@ -327,7 +327,7 @@ class TestADClient(BaseTest):
         client.modify(user, mods)
         creds = Creds(domain)
         creds.acquire('test-usr-1', 'Pass123')
-        assert py.test.raises(ADError, creds.acquire, 'test-usr-1', 'Pass321')
+        assert_raises(ADError, creds.acquire, 'test-usr-1', 'Pass321')
         self._delete_obj(client, user)
 
     def test_set_password_target_pdc(self):
@@ -348,8 +348,8 @@ class TestADClient(BaseTest):
         client.modify(user, mods, server=pdc)
         creds = Creds(domain)
         creds.acquire('test-usr-2', 'Pass123', server=pdc)
-        assert py.test.raises(ADError, creds.acquire, 'test-usr-2', 'Pass321',
-                              server=pdc)
+        assert_raises(ADError, creds.acquire, 'test-usr-2','Pass321',
+                      server=pdc)
         self._delete_obj(client, user, server=pdc)
 
     def test_change_password(self):
@@ -370,7 +370,7 @@ class TestADClient(BaseTest):
         client.change_password(principal, 'Pass123', 'Pass456')
         creds = Creds(domain)
         creds.acquire('test-usr-3', 'Pass456')
-        assert py.test.raises(ADError, creds.acquire, 'test-usr-3', 'Pass321')
+        assert_raises(ADError, creds.acquire, 'test-usr-3', 'Pass321')
         self._delete_obj(client, user)
 
     def test_change_password_target_pdc(self):
@@ -393,6 +393,6 @@ class TestADClient(BaseTest):
         client.change_password(principal, 'Pass123', 'Pass456', server=pdc)
         creds = Creds(domain)
         creds.acquire('test-usr-4', 'Pass456', server=pdc)
-        assert py.test.raises(ADError, creds.acquire, 'test-usr-4', 'Pass321',
-                              server=pdc)
+        assert_raises(ADError, creds.acquire, 'test-usr-4', 'Pass321',
+                             server=pdc)
         self._delete_obj(client, user, server=pdc)

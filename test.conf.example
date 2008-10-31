@@ -1,10 +1,10 @@
 #
-# This file is part of FreeADI. FreeADI is free software that is made
+# This file is part of Python-AD. Python-AD is free software that is made
 # available under the MIT license. Consult the file "LICENSE" that is
 # distributed together with this file for the exact licensing terms.
 #
-# FreeADI is copyright (c) 2007 by the FreeADI authors. See the file
-# "AUTHORS" for a complete overview.
+# Python-AD is copyright (c) 2007-2008 by the Python-AD authors. See the
+# file "AUTHORS" for a complete overview.
 
 [test]
 
@@ -12,8 +12,7 @@
 # that can take a significant amount of time to complete.
 expensive_tests = 1
 
-
-# Some test in the FreeADI test suite require an Active Directory. These tests
+# Some test in the Python-AD test suite require an Active Directory. These tests
 # are disabled by default and can be enabled below. A great way of doing AD
 # tests is to install an AD forest in one or multiple virtual machines on the
 # current system, and connect the systems to a virtual network that is shared
@@ -37,37 +36,34 @@ ad_user_password = <password>
 
 #                   WARNING !!! WARNING !!! WARNING !!!
 #
-# FreeADI has support for "intrusive tests". These tests require elevated
+# Python-AD has support for "intrusive tests". These tests require elevated
 # privileges on the current system or in the directory, and may change
 # system configurations and update or delete data.
 #
 # All intrusive tests are disabled by default. They can be enabled by
-# settings the following variables to "1" and providing the proper password
-# in this configuration file.
+# settings the corresponding variables to "1" and providing the proper
+# password in this configuration file. Two types of intrusive tests exist:
 #
-#  - root_tests:           Controls tests that require root access.
-#  - firewall_tests:       Controls tests that change the firewall configuration of
-#  		           the local system to test certain aspects (mostly
-#  		           error conditions) of protocol clients implemented by
-#  		           FreeADI.
-#  - admin_tests:  	   Controls tests that require AD administrator access.
-#  - ad_write_tests:  	   Enables tests that access or modify data in Active
-#                          Directory. Depending on the setting of administrator_tests
-#                          is disabled, these tests will or will not modify data.
+#  - Intrusive local tests. These tests can modify system configuration
+#    files, update firewall settings and make other changes. The local root
+#    password is required to run these tests.
+#  - Intrusive AD tests. These tests can create / change / delete objects in
+#    Active Directory. The AD administrator password is required to run
+#    these tests.
 #
-# Intrusive tests should be in an environment that is not production critical.
-# A good candidate for such an environment would be a set of virtualised host
-# running on a developer workstations which are connected to a host-only
-# network. See the section above on AD tests on how to set up such an
-# environment.
+# Intrusive tests should be in an environment that is not a production
+# environment. A good candidate for such an environment would be a set of
+# virtualised host running on a developer workstations which are connected
+# to a host-only network. See the section above on AD tests on how to set up
+# such an environment.
 #
-# Intrusive tests are written such that after running a set of tests the system
-# will be in a state that allows running the tests again, and so on.  In
-# particular no restore from backup (or restore to snapshot in a virtual
+# Intrusive tests are written such that after running a set of tests the
+# system will be in a state that allows running the tests again, and so on.
+# In particular no restore from backup (or restore to snapshot in a virtual
 # environment) is required after running the tests. It is not guaranteed
 # however that after a running a set of tests the system will be in the same
 # state as it was before the tests. This is the reason that intrusive tests
-# should never be run on a production environment.
+# should never be run in a production environment.
 
 # Set to 1 to enable tests that require local admin (root) access, 0 to
 # disable.

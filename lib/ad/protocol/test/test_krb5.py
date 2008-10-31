@@ -9,8 +9,8 @@
 import os
 import stat
 import pexpect
-import py.test
 
+from nose.tools import assert_raises
 from ad.protocol import krb5
 from ad.test.base import BaseTest, Error
 
@@ -38,7 +38,7 @@ class TestKrb5(BaseTest):
         self.acquire_credentials(principal, password)
         ccache = krb5.cc_default()
         cctmp = self.tempfile()
-        assert py.test.raises(Error, self.list_credentials, cctmp)
+        assert_raises(Error, self.list_credentials, cctmp)
         krb5.cc_copy_creds(ccache, cctmp)
         ccname, princ, creds = self.list_credentials(cctmp)
         assert princ.lower() == principal.lower()

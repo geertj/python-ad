@@ -8,7 +8,6 @@
 
 import os
 import pexpect
-import py.test
 
 from ad.test.base import BaseTest
 from ad.core.creds import Creds as ADCreds
@@ -58,8 +57,6 @@ class TestCreds(BaseTest):
         child.sendline('quit')
         child.expect(pexpect.EOF)
         creds.release()
-        os.system('klist -k -t %s' % keytab)
-        os.system('ls -l %s' % keytab)
         creds.acquire(principal, keytab=keytab)
         child = pexpect.spawn('klist')
         pattern = '.*krbtgt/%s@%s' % (domain.upper(), domain.upper())

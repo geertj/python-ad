@@ -6,7 +6,7 @@
 # Python-AD is copyright (c) 2007 by the Python-AD authors. See the file
 # "AUTHORS" for a complete overview.
 
-import py.test
+from nose.tools import assert_raises
 from ad.protocol import asn1
 
 class TestEncoder(object):
@@ -172,19 +172,19 @@ class TestEncoder(object):
 
     def test_error_init(self):
         enc = asn1.Encoder()
-        py.test.raises(asn1.Error, enc.enter, asn1.Sequence)
-        py.test.raises(asn1.Error, enc.leave)
-        py.test.raises(asn1.Error, enc.write, 1)
-        py.test.raises(asn1.Error, enc.output)
+        assert_raises(asn1.Error, enc.enter, asn1.Sequence)
+        assert_raises(asn1.Error, enc.leave)
+        assert_raises(asn1.Error, enc.write, 1)
+        assert_raises(asn1.Error, enc.output)
 
     def test_error_stack(self):
         enc = asn1.Encoder()
         enc.start()
-        py.test.raises(asn1.Error, enc.leave)
+        assert_raises(asn1.Error, enc.leave)
         enc.enter(asn1.Sequence)
-        py.test.raises(asn1.Error, enc.output)
+        assert_raises(asn1.Error, enc.output)
         enc.leave()
-        py.test.raises(asn1.Error, enc.leave)
+        assert_raises(asn1.Error, enc.leave)
 
 
 class TestDecoder(object):
@@ -414,19 +414,19 @@ class TestDecoder(object):
  
     def test_error_init(self):
         dec = asn1.Decoder()
-        py.test.raises(asn1.Error, dec.peek)
-        py.test.raises(asn1.Error, dec.read)
-        py.test.raises(asn1.Error, dec.enter)
-        py.test.raises(asn1.Error, dec.leave)
+        assert_raises(asn1.Error, dec.peek)
+        assert_raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.enter)
+        assert_raises(asn1.Error, dec.leave)
 
     def test_error_stack(self):
         buf = '\x30\x08\x02\x01\x01\x04\x03foo'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.leave)
+        assert_raises(asn1.Error, dec.leave)
         dec.enter()
         dec.leave()
-        py.test.raises(asn1.Error, dec.leave)
+        assert_raises(asn1.Error, dec.leave)
 
     def test_no_input(self):
         dec = asn1.Decoder()
@@ -438,49 +438,49 @@ class TestDecoder(object):
         buf = '\x3f'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.peek)
+        assert_raises(asn1.Error, dec.peek)
         buf = '\x3f\x83'
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.peek)
+        assert_raises(asn1.Error, dec.peek)
 
     def test_error_no_length_bytes(self):
         buf = '\x02'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.read)
 
     def test_error_missing_length_bytes(self):
         buf = '\x04\x82\xff'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.read)
 
     def test_error_too_many_length_bytes(self):
         buf = '\x04\xff' + '\xff' * 0x7f
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.read)
 
     def test_error_no_value_bytes(self):
         buf = '\x02\x01'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.read)
 
     def test_error_missing_value_bytes(self):
         buf = '\x02\x02\x01'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.read)
 
     def test_error_non_normalized_positive_integer(self):
         buf = '\x02\x02\x00\x01'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.read)
 
     def test_error_non_normalized_negative_integer(self):
         buf = '\x02\x02\xff\x80'
         dec = asn1.Decoder()
         dec.start(buf)
-        py.test.raises(asn1.Error, dec.read)
+        assert_raises(asn1.Error, dec.read)

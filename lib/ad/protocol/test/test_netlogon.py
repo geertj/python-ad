@@ -8,10 +8,10 @@
 
 import os.path
 import signal
-import py.test
 import dns.resolver
 
 from threading import Timer
+from nose.tools import assert_raises
 from ad.test.base import BaseTest
 from ad.protocol import netlogon
 
@@ -45,15 +45,15 @@ class TestDecoder(BaseTest):
 
     def test_error_uint32_null_input(self):
         s = ''
-        py.test.raises(netlogon.Error, self.decode_uint32, s, 0)
+        assert_raises(netlogon.Error, self.decode_uint32, s, 0)
 
     def test_error_uint32_short_input(self):
         s = '\x00'
-        py.test.raises(netlogon.Error, self.decode_uint32, s, 0)
+        assert_raises(netlogon.Error, self.decode_uint32, s, 0)
         s = '\x00\x00'
-        py.test.raises(netlogon.Error, self.decode_uint32, s, 0)
+        assert_raises(netlogon.Error, self.decode_uint32, s, 0)
         s = '\x00\x00\x00'
-        py.test.raises(netlogon.Error, self.decode_uint32, s, 0)
+        assert_raises(netlogon.Error, self.decode_uint32, s, 0)
 
     def decode_rfc1035(self, buffer, offset):
         d = netlogon.Decoder()
@@ -100,35 +100,35 @@ class TestDecoder(BaseTest):
 
     def test_error_rfc1035_null_input(self):
         s = ''
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
 
     def test_error_rfc1035_missing_tag(self):
         s = '\x03foo'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
 
     def test_error_rfc1035_truncated_input(self):
         s = '\x04foo'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
 
     def test_error_rfc1035_pointer_overflow(self):
         s = '\xc0\x03'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
 
     def test_error_rfc1035_cyclic_pointer(self):
         s = '\xc0\x00'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
         s = '\x03foo\xc0\x06\x03bar\xc0\x0c\x03baz\xc0\x00'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
 
     def test_error_rfc1035_illegal_tags(self):
         s = '\x80' + 0x80 * 'a' + '\x00'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
         s = '\x40' + 0x40 * 'a' + '\x00'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
 
     def test_error_rfc1035_half_pointer(self):
         s = '\xc0'
-        py.test.raises(netlogon.Error, self.decode_rfc1035, s, 0)
+        assert_raises(netlogon.Error, self.decode_rfc1035, s, 0)
 
     def test_io_byte(self):
         d = netlogon.Decoder()
@@ -150,36 +150,36 @@ class TestDecoder(BaseTest):
         d.start(s)
         for i in range(3):
             d._read_byte()
-        assert py.test.raises(netlogon.Error, d._read_byte)
+        assert_raises(netlogon.Error, d._read_byte)
 
     def test_error_io_bytes(self):
         d = netlogon.Decoder()
         s = 'foo'
         d.start(s)
-        assert py.test.raises(netlogon.Error, d._read_bytes, 4)
+        assert_raises(netlogon.Error, d._read_bytes, 4)
 
     def test_error_io_bounds(self):
         d = netlogon.Decoder()
         s = 'foo'
         d.start(s)
         d._set_offset(4)
-        assert py.test.raises(netlogon.Error, d._read_byte)
-        assert py.test.raises(netlogon.Error, d._read_bytes, 4)
+        assert_raises(netlogon.Error, d._read_byte)
+        assert_raises(netlogon.Error, d._read_bytes, 4)
 
     def test_error_negative_offset(self):
         d = netlogon.Decoder()
         s = 'foo'
         d.start(s)
-        assert py.test.raises(netlogon.Error, d._set_offset, -1)
+        assert_raises(netlogon.Error, d._set_offset, -1)
 
     def test_error_io_type(self):
         d = netlogon.Decoder()
-        assert py.test.raises(netlogon.Error, d.start, 1)
-        assert py.test.raises(netlogon.Error, d.start, 1L)
-        assert py.test.raises(netlogon.Error, d.start, ())
-        assert py.test.raises(netlogon.Error, d.start, [])
-        assert py.test.raises(netlogon.Error, d.start, {})
-        assert py.test.raises(netlogon.Error, d.start, u'test')
+        assert_raises(netlogon.Error, d.start, 1)
+        assert_raises(netlogon.Error, d.start, 1L)
+        assert_raises(netlogon.Error, d.start, ())
+        assert_raises(netlogon.Error, d.start, [])
+        assert_raises(netlogon.Error, d.start, {})
+        assert_raises(netlogon.Error, d.start, u'test')
 
     def test_real_packet(self):
         fname = os.path.join(self.basedir(), 'lib/ad/protocol/test',
@@ -199,7 +199,7 @@ class TestDecoder(BaseTest):
         buf = 'x' * 24
         dec = netlogon.Decoder()
         dec.start(buf)
-        py.test.raises(netlogon.Error, dec.parse)
+        assert_raises(netlogon.Error, dec.parse)
 
 
 class TestClient(BaseTest):
