@@ -102,19 +102,19 @@ class Locator(object):
         query = '_ldap._tcp.%s._msdcs.%s' % (role, domain.lower())
         answer = self._dns_query(query, 'SRV')
         candidates += self._order_dns_srv(answer)
-        candidates = self._extract_addresses_from_srv(candidates)
-        self._remove_duplicates(candidates)
+        addresses = self._extract_addresses_from_srv(candidates)
+        addresses = self._remove_duplicates(addresses)
         replies = []
         netlogon = NetlogonClient()
-        for i in range(0, len(candidates), maxservers):
-            for addr in candidates[i:i+maxservers]:
-                addr = (addr, LDAP_PORT)
+        for i in range(0, len(addresses), maxservers):
+            for addr in addresses[i:i+maxservers]:
+                addr = (addr[0], LDAP_PORT)  # in case we queried for GC
                 netlogon.query(addr, domain)
             replies += netlogon.call()
             if self._sufficient_domain_controllers(replies, role, maxservers):
                 break
         result = self._select_domain_controllers(replies, role, maxservers,
-                                                 candidates)
+                                                 addresses)
         servers = self._extract_addresses_from_netlogon(result)
         self.m_logger.debug('found %d domain controllers' % len(servers))
         now = time.time()
@@ -153,12 +153,11 @@ class Locator(object):
         query = '_ldap._tcp.%s' % domain.lower()
         answer = self._dns_query(query, 'SRV')
         servers = self._order_dns_srv(answer)
-        servers = self._extract_addresses_from_srv(servers)
+        addresses = self._extract_addresses_from_srv(servers)
         replies = []
         netlogon = NetlogonClient()
-        for i in range(0, len(servers), 3):
-            for addr in servers[i:i+3]:
-                addr = (addr, LDAP_PORT)
+        for i in range(0, len(addresses), 3):
+            for addr in addresses[i:i+3]:
                 self.m_logger.debug('NetLogon query to %s' % addr[0])
                 netlogon.query(addr, domain)
             replies += netlogon.call()
@@ -216,7 +215,7 @@ class Locator(object):
 
     def _extract_addresses_from_srv(self, answer):
         """Extract IP addresses from a DNS SRV query answer."""
-        result = [ a.target.to_text() for a in answer ]
+        result = [ (a.target.to_text(), a.port) for a in answer ]
         return result
 
     def _remove_duplicates(self, servers):
@@ -275,27 +274,19 @@ class Locator(object):
     def _sufficient_domain_controllers(self, replies, role, maxservers):
         """Return True if there are sufficient domain controllers in `replies'
         to satisfy `maxservers'."""
-        local = 0
-        remote = 0
+        total = 0
         for reply in replies:
             if not hasattr(reply, 'checked'):
                 checked = self._check_domain_controller(reply, role)
                 reply.checked = checked
-            if not reply.checked:
-                continue
-            if reply.client_site == self.m_site:
-                local += 1
-            else:
-                remote += 1
-        if local+remote >= maxservers:
-            return True
-        return False
+            if reply.checked:
+                total += 1
+        return total >= maxservers
 
-    def _select_domain_controllers(self, replies, role, maxservers, candidates):
+    def _select_domain_controllers(self, replies, role, maxservers, addresses):
         """Select up to `maxservers' domain controllers from `replies'. The
-        `candidates' argument is the full list of DNS SRV candidates that led
-        to the current list of replies and can be used to obtain SRV ordering
-        information.
+        `addresses' argument is the ordered list of addresses from DNS SRV
+        resolution. It can be used to obtain SRV ordering information.
         """
         local = []
         remote = []
@@ -303,12 +294,12 @@ class Locator(object):
             assert hasattr(reply, 'checked')
             if not reply.checked:
                 continue
-            if self.m_site == reply.server_site:
+            if self.m_site.lower() == reply.server_site.lower():
                 local.append(reply)
             else:
                 remote.append(reply)
-        local.sort(lambda x,y: cmp(candidates.index((x.q_hostname, x.q_port)),
-                                   candidates.index((y.q_hostname, y.q_port))))
+        local.sort(lambda x,y: cmp(addresses.index((x.q_hostname, x.q_port)),
+                                   addresses.index((y.q_hostname, y.q_port))))
         remote.sort(lambda x,y: cmp(x.q_timing, y.q_timing))
         self.m_logger.debug('Local DCs: %s' % ', '.join(['%s:%s' %
                                 (x.q_hostname, x.q_port) for x in local]))
