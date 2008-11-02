@@ -120,7 +120,7 @@ class Client(object):
         self._check_tag(decoder.peek(), asn1.Sequence)
         decoder.enter()
         self._check_tag(decoder.peek(), asn1.Integer)
-        msgid = decoder.read()
+        msgid = decoder.read()[1]
         tag = decoder.peek()
         self._check_tag(tag, None, asn1.TypeConstructed, asn1.ClassApplication)
         op = tag[0]
@@ -143,14 +143,14 @@ class Client(object):
             self._check_tag(tag, asn1.Sequence)
             decoder.enter()  # enter LDAPMessage
             self._check_tag(decoder.peek(), asn1.Integer)
-            msgid = decoder.read()  # messageID
+            msgid = decoder.read()[1]  # messageID
             tag = decoder.peek()
             self._check_tag(tag, (4,5), asn1.TypeConstructed, asn1.ClassApplication)
             if tag[0] == 5:
                 break
             decoder.enter()  #  SearchResultEntry
             self._check_tag(decoder.peek(), asn1.OctetString)
-            dn = decoder.read()  # objectName
+            dn = decoder.read()[1]  # objectName
             self._check_tag(decoder.peek(), asn1.Sequence)
             decoder.enter()  # enter attributes
             attrs = {}
@@ -161,7 +161,7 @@ class Client(object):
                 self._check_tag(tag, asn1.Sequence)
                 decoder.enter()  # one attribute
                 self._check_tag(decoder.peek(), asn1.OctetString)
-                name = decoder.read()  # type
+                name = decoder.read()[1]  # type
                 self._check_tag(decoder.peek(), asn1.Set)
                 decoder.enter()  # vals
                 values = []
@@ -170,7 +170,7 @@ class Client(object):
                     if tag is None:
                         break
                     self._check_tag(tag, asn1.OctetString)
-                    values.append(decoder.read())
+                    values.append(decoder.read()[1])
                 attrs[name] = values
                 decoder.leave()  # leave vals
                 decoder.leave()  # leave attribute

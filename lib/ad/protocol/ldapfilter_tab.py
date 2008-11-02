@@ -4,7 +4,7 @@
 
 _lr_method = 'LALR'
 
-_lr_signature = '\xc4v\xbb\x0bs\xa9\xd0\xd8\xc4\xf8B&_\x18\nb'
+_lr_signature = 'o;C\x91;G\xcc[\x06G;\xa3\xa3R\xb9\x14'
 
 _lr_action_items = {'AND':([2,],[4,]),'APPROX':([5,],[14,]),'RPAREN':([3,7,9,10,11,12,13,18,19,20,21,22,23,24,25,26,27,28,],[11,20,22,23,-1,-5,-8,-14,-6,-4,-7,-3,-2,-9,-13,-12,-10,-11,]),'STRING':([2,14,15,16,17,],[5,25,26,27,28,]),'LTE':([5,],[17,]),'GTE':([5,],[15,]),'EQUALS':([5,],[16,]),'LPAREN':([0,4,6,8,11,13,20,22,23,],[2,2,2,2,-1,2,-4,-3,-2,]),'NOT':([2,],[8,]),'OR':([2,],[6,]),'PRESENT':([5,],[18,]),'$end':([1,11,20,22,23,],[0,-1,-4,-3,-2,]),}
 
@@ -25,18 +25,18 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S'",1,None,None,None),
-  ('filter',3,'p_filter','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',108),
-  ('filter',3,'p_filter','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',109),
-  ('filter',3,'p_filter','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',110),
-  ('filter',3,'p_filter','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',111),
-  ('and',2,'p_and','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',116),
-  ('or',2,'p_or','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',120),
-  ('not',2,'p_not','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',124),
-  ('filterlist',1,'p_filterlist','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',128),
-  ('filterlist',2,'p_filterlist','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',129),
-  ('item',3,'p_item','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',137),
-  ('item',3,'p_item','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',138),
-  ('item',3,'p_item','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',139),
-  ('item',3,'p_item','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',140),
-  ('item',2,'p_item','/home/geert/Projects/python-ad/lib/ad/protocol/ldapfilter.py',141),
+  ('filter',3,'p_filter','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',108),
+  ('filter',3,'p_filter','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',109),
+  ('filter',3,'p_filter','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',110),
+  ('filter',3,'p_filter','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',111),
+  ('and',2,'p_and','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',116),
+  ('or',2,'p_or','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',120),
+  ('not',2,'p_not','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',124),
+  ('filterlist',1,'p_filterlist','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',128),
+  ('filterlist',2,'p_filterlist','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',129),
+  ('item',3,'p_item','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',137),
+  ('item',3,'p_item','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',138),
+  ('item',3,'p_item','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',139),
+  ('item',3,'p_item','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',140),
+  ('item',2,'p_item','/home/geertj/Projects/python-ad/lib/ad/protocol/ldapfilter.py',141),
 ]

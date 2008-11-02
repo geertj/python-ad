@@ -3,11 +3,12 @@
 # available under the MIT license. Consult the file "LICENSE" that is
 # distributed together with this file for the exact licensing terms.
 #
-# Python-AD is copyright (c) 2007 by the Python-AD authors. See the file
-# "AUTHORS" for a complete overview.
+# Python-AD is copyright (c) 2007-2008 by the Python-AD authors. See the
+# file "AUTHORS" for a complete overview.
 
-from nose.tools import assert_raises
 from ad.protocol import asn1
+from nose.tools import assert_raises
+
 
 class TestEncoder(object):
     """Test suite for ASN1 Encoder."""
@@ -79,6 +80,35 @@ class TestEncoder(object):
         enc.write(None)
         res = enc.output()
         assert res == '\x05\x00'
+
+    def test_object_identifier(self):
+        enc = asn1.Encoder()
+        enc.start()
+        enc.write('1.2.3', asn1.ObjectIdentifier)
+        res = enc.output()
+        assert res == '\x06\x02\x2a\x03'
+
+    def test_long_object_identifier(self):
+        enc = asn1.Encoder()
+        enc.start()
+        enc.write('39.2.3', asn1.ObjectIdentifier)
+        res = enc.output()
+        assert res == '\x06\x03\x8c\x1a\x03'
+        enc.start()
+        enc.write('1.39.3', asn1.ObjectIdentifier)
+        res = enc.output()
+        assert res == '\x06\x02\x4f\x03'
+        enc.start()
+        enc.write('1.2.300000', asn1.ObjectIdentifier)
+        res = enc.output()
+        assert res == '\x06\x04\x2a\x92\xa7\x60'
+
+    def test_real_object_identifier(self):
+        enc = asn1.Encoder()
+        enc.start()
+        enc.write('1.2.840.113554.1.2.1.1', asn1.ObjectIdentifier)
+        res = enc.output()
+        assert res == '\x06\x0a\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x01'
 
     def test_enumerated(self):
         enc = asn1.Encoder()
@@ -186,6 +216,17 @@ class TestEncoder(object):
         enc.leave()
         assert_raises(asn1.Error, enc.leave)
 
+    def test_error_object_identifier(self):
+        enc = asn1.Encoder()
+        enc.start()
+        assert_raises(asn1.Error, enc.write, '1', asn1.ObjectIdentifier)
+        assert_raises(asn1.Error, enc.write, '40.2.3', asn1.ObjectIdentifier)
+        assert_raises(asn1.Error, enc.write, '1.40.3', asn1.ObjectIdentifier)
+        assert_raises(asn1.Error, enc.write, '1.2.3.', asn1.ObjectIdentifier)
+        assert_raises(asn1.Error, enc.write, '.1.2.3', asn1.ObjectIdentifier)
+        assert_raises(asn1.Error, enc.write, 'foo', asn1.ObjectIdentifier)
+        assert_raises(asn1.Error, enc.write, 'foo.bar', asn1.ObjectIdentifier)
+
 
 class TestDecoder(object):
     """Test suite for ASN1 Decoder."""
@@ -196,17 +237,17 @@ class TestDecoder(object):
         dec.start(buf)
         tag = dec.peek()
         assert tag == (asn1.Boolean, asn1.TypePrimitive, asn1.ClassUniversal)
-        val = dec.read()
+        tag, val = dec.read()
         assert isinstance(val, int)
         assert val == True
         buf = '\x01\x01\x01'
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert isinstance(val, int)
         assert val == True
         buf = '\x01\x01\x00'
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert isinstance(val, int)
         assert val == False
 
@@ -216,7 +257,7 @@ class TestDecoder(object):
         dec.start(buf)
         tag = dec.peek()
         assert tag == (asn1.Integer, asn1.TypePrimitive, asn1.ClassUniversal)
-        val = dec.read()
+        tag, val = dec.read()
         assert isinstance(val, int)
         assert val == 1
 
@@ -224,40 +265,40 @@ class TestDecoder(object):
         buf = '\x02\x0f\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f'
         dec = asn1.Decoder()
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 0x0102030405060708090a0b0c0d0e0fL
 
     def test_negative_integer(self):
         buf = '\x02\x01\xff'
         dec = asn1.Decoder()
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == -1
 
     def test_long_negative_integer(self):
         buf = '\x02\x0f\xfe\xfd\xfc\xfb\xfa\xf9\xf8\xf7\xf6\xf5\xf4\xf3\xf2\xf1\xf1'
         dec = asn1.Decoder()
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == -0x0102030405060708090a0b0c0d0e0fL
 
     def test_twos_complement_boundaries(self):
         buf = '\x02\x01\x7f'
         dec = asn1.Decoder()
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 127
         buf = '\x02\x02\x00\x80'
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 128
         buf = '\x02\x01\x80'
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == -128
         buf = '\x02\x02\xff\x7f'
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == -129
 
     def test_octet_string(self):
@@ -266,7 +307,7 @@ class TestDecoder(object):
         dec.start(buf)
         tag = dec.peek()
         assert tag == (asn1.OctetString, asn1.TypePrimitive, asn1.ClassUniversal)
-        val = dec.read()
+        tag, val = dec.read()
         assert isinstance(val, str)
         assert val == 'foo'
 
@@ -276,8 +317,40 @@ class TestDecoder(object):
         dec.start(buf)
         tag = dec.peek()
         assert tag == (asn1.Null, asn1.TypePrimitive, asn1.ClassUniversal)
-        val = dec.read()
+        tag, val = dec.read()
         assert val is None
+
+    def test_object_identifier(self):
+        dec = asn1.Decoder()
+        buf = '\x06\x02\x2a\x03'
+        dec.start(buf)
+        tag = dec.peek()
+        assert tag == (asn1.ObjectIdentifier, asn1.TypePrimitive,
+                       asn1.ClassUniversal)
+        tag, val = dec.read()
+        assert val == '1.2.3'
+
+    def test_long_object_identifier(self):
+        dec = asn1.Decoder()
+        buf = '\x06\x03\x8c\x1a\x03'
+        dec.start(buf)
+        tag, val = dec.read()
+        assert val == '39.2.3'
+        buf = '\x06\x02\x4f\x03'
+        dec.start(buf)
+        tag, val = dec.read()
+        assert val == '1.39.3'
+        buf = '\x06\x04\x2a\x92\xa7\x60'
+        dec.start(buf)
+        tag, val = dec.read()
+        assert val == '1.2.300000'
+
+    def test_real_object_identifier(self):
+        dec = asn1.Decoder()
+        buf = '\x06\x0a\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x01'
+        dec.start(buf)
+        tag, val = dec.read()
+        assert val == '1.2.840.113554.1.2.1.1'
 
     def test_enumerated(self):
         buf = '\x0a\x01\x01'
@@ -285,7 +358,7 @@ class TestDecoder(object):
         dec.start(buf)
         tag = dec.peek()
         assert tag == (asn1.Enumerated, asn1.TypePrimitive, asn1.ClassUniversal)
-        val = dec.read()
+        tag, val = dec.read()
         assert isinstance(val, int)
         assert val == 1
 
@@ -296,9 +369,9 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (asn1.Sequence, asn1.TypeConstructed, asn1.ClassUniversal)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 'foo'
 
     def test_sequence_of(self):
@@ -308,9 +381,9 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (asn1.Sequence, asn1.TypeConstructed, asn1.ClassUniversal)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 2
 
     def test_set(self):
@@ -320,9 +393,9 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (asn1.Set, asn1.TypeConstructed, asn1.ClassUniversal)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 'foo'
 
     def test_set_of(self):
@@ -332,9 +405,9 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (asn1.Set, asn1.TypeConstructed, asn1.ClassUniversal)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 2
 
     def test_context(self):
@@ -344,7 +417,7 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (1, asn1.TypeConstructed, asn1.ClassContext)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
 
     def test_application(self):
@@ -354,7 +427,7 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (1, asn1.TypeConstructed, asn1.ClassApplication)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
 
     def test_private(self):
@@ -364,7 +437,7 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (1, asn1.TypeConstructed, asn1.ClassPrivate)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
 
     def test_long_tag_id(self):
@@ -374,23 +447,23 @@ class TestDecoder(object):
         tag = dec.peek()
         assert tag == (0xffff, asn1.TypeConstructed, asn1.ClassUniversal)
         dec.enter()
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
 
     def test_long_tag_length(self):
         buf = '\x04\x82\xff\xff' + 'x' * 0xffff
         dec = asn1.Decoder()
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 'x' * 0xffff
 
     def test_read_multiple(self):
         buf = '\x02\x01\x01\x02\x01\x02'
         dec = asn1.Decoder()
         dec.start(buf)
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 1
-        val = dec.read()
+        tag, val = dec.read()
         assert val == 2
         assert dec.eof()
 
@@ -398,8 +471,8 @@ class TestDecoder(object):
         buf = '\x02\x01\x01\x02\x01\x02'
         dec = asn1.Decoder()
         dec.start(buf)
-        dec.skip()
-        val = dec.read()
+        dec.read()
+        tag, val = dec.read()
         assert val == 2
         assert dec.eof()
 
@@ -407,8 +480,8 @@ class TestDecoder(object):
         buf = '\x30\x06\x02\x01\x01\x02\x01\x02\x02\x01\x03'
         dec = asn1.Decoder()
         dec.start(buf)
-        dec.skip()
-        val = dec.read()
+        dec.read()
+        tag, val = dec.read()
         assert val == 3
         assert dec.eof()
  
@@ -481,6 +554,18 @@ class TestDecoder(object):
 
     def test_error_non_normalized_negative_integer(self):
         buf = '\x02\x02\xff\x80'
+        dec = asn1.Decoder()
+        dec.start(buf)
+        assert_raises(asn1.Error, dec.read)
+
+    def test_error_non_normalised_object_identifier(self):
+        buf = '\x06\x02\x80\x01'
+        dec = asn1.Decoder()
+        dec.start(buf)
+        assert_raises(asn1.Error, dec.read)
+
+    def test_error_object_identifier_with_too_large_first_component(self):
+        buf = '\x06\x02\x8c\x40'
         dec = asn1.Decoder()
         dec.start(buf)
         assert_raises(asn1.Error, dec.read)
