@@ -4,7 +4,7 @@
 <info>
   <title>Python-AD reference manual</title>
   <author><firstname>Geert</firstname> <surname>Jansen</surname> </author>
-  <copyright><year>2007</year> <holder>Geert Jansen</holder> </copyright>
+  <copyright><year>2007</year><year>2008</year> <holder>Geert Jansen</holder> </copyright>
 </info>
 <xi:include href="preface.xml"/>
 <xi:include href="reference.xml"/>
