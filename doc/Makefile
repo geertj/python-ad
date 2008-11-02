@@ -12,8 +12,8 @@ STYLESHEET = /usr/share/sgml/docbook/xsl-stylesheets/xhtml/chunk.xsl
 MKDIR = mkdir -p
 INPUTS = index.xml preface.xml reference.xml license.xml
 
-all: out/index.html
+all: html/index.html
 
-out/index.html: $(INPUTS)
-	$(MKDIR) out
-	$(XSLTPROC) $(XSLTFLAGS) --output out/index.html $(STYLESHEET) $<
+html/index.html: $(INPUTS)
+	$(MKDIR) html
+	$(XSLTPROC) $(XSLTFLAGS) --output html/index.html $(STYLESHEET) $<
