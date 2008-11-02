@@ -10,11 +10,11 @@ from setuptools import setup, Extension
 
 setup(
     name = 'python-ad',
-    version = '0.8',
+    version = '0.9',
     description = 'An AD client library for Python',
     author = 'Geert Jansen',
     author_email = 'geert@boskant.nl',
-    url = 'http://www.boskant.nl/trac/python-ad',
+    url = 'http://code.google.com/p/python-ad',
     license = 'MIT',
     classifiers = ['Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
