@@ -242,7 +242,7 @@ class Locator(object):
         answer = self._dns_query(reply.q_hostname, 'A')
         if len(answer) != 1:
             self.m_logger.error('Forward DNS returned %d entries (need 1)' %
-                                len(anser))
+                                len(answer))
             return False
         address = answer[0].address
         revname = dns.reversename.from_address(address)
