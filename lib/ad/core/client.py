@@ -21,6 +21,7 @@ from ad.core.creds import Creds
 from ad.core.locate import Locator
 from ad.core.constant import LDAP_PORT, GC_PORT
 from ad.protocol import krb5
+from ad.util.compat import str2dn
 
 
 class Client(object):
@@ -95,7 +96,7 @@ class Client(object):
 
     def domain_name_from_dn(self, dn):
         """Given a DN, return a domain."""
-        parts = ldap.str2dn(dn)
+        parts = str2dn(dn)
         parts.reverse()
         domain = []
         for part in parts:
