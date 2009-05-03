@@ -11,10 +11,10 @@ import os.path
 import sys
 import tempfile
 import pexpect
-import logging
 
 from nose import SkipTest
 from ConfigParser import ConfigParser
+from ad.util.log import enable_logging
 
 
 class Error(Exception):
@@ -35,15 +35,9 @@ class BaseTest(object):
         config.read(fname)
         cls.c_config = config
         cls.c_basedir = os.path.dirname(fname)
-        logger = logging.getLogger('ad')
-        handler = logging.StreamHandler(sys.stdout)
-        format = '%(levelname)s [%(name)s] %(message)s'
-        formatter = logging.Formatter(format)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
         cls.c_iptables = None
         cls.c_tempfiles = []
+        enable_logging()
 
     @classmethod
     def teardown_class(cls):
