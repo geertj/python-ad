@@ -161,6 +161,9 @@ class Creds(object):
             return
         locator = factory(Locator)
         result = locator.locate_many(domain)
+        if not result:
+            m = 'No suitable domain controllers found for %s' % domain
+            raise Error, m
         self.m_domains[domain] = list(result)
         # Re-init every time
         self._init_config()
