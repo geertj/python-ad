@@ -362,6 +362,31 @@ k5_cc_get_principal(PyObject *self, PyObject *args)
 }
 
 
+static PyObject *
+k5_c_valid_enctype(PyObject *self, PyObject *args)
+{
+    char *name;
+    krb5_context ctx;
+    krb5_enctype type;
+    krb5_error_code code;
+    krb5_boolean valid;
+    PyObject *ret;
+
+    if (!PyArg_ParseTuple( args, "s", &name))
+	return NULL;
+
+    code = krb5_init_context(&ctx);
+    RETURN_ON_ERROR("krb5_init_context()", code);
+    code = krb5_string_to_enctype(name, &type);
+    RETURN_ON_ERROR("krb5_string_to_enctype()", code);
+    valid = krb5_c_valid_enctype(type);
+    ret = PyBool_FromLong((long) valid);
+    krb5_free_context(ctx);
+
+    return ret;
+}
+
+
 static PyMethodDef k5_methods[] = 
 {
     { "get_init_creds_password",
@@ -378,6 +403,8 @@ static PyMethodDef k5_methods[] =
 	    (PyCFunction) k5_cc_copy_creds, METH_VARARGS },
     { "cc_get_principal",
 	    (PyCFunction) k5_cc_get_principal, METH_VARARGS },
+    { "c_valid_enctype",
+            (PyCFunction) k5_c_valid_enctype, METH_VARARGS },
     { NULL, NULL }
 };
 
