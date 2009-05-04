@@ -70,6 +70,13 @@ class Locator(object):
 
     def locate_many(self, domain, role=None, maxservers=None):
         """Locate a list of up to `maxservers' of domain controllers."""
+        result = self.locate_many_ex(domain, role, maxservers)
+        result = [ r.hostname for r in result ]
+        return result
+
+    def locate_many_ex(self, domain, role=None, maxservers=None):
+        """Like locate_many(), but returns a list of netlogon.Reply objects
+        instead."""
         if role is None:
             role = 'dc'
         if maxservers is None:
@@ -113,9 +120,8 @@ class Locator(object):
             replies += netlogon.call()
             if self._sufficient_domain_controllers(replies, role, maxservers):
                 break
-        result = self._select_domain_controllers(replies, role, maxservers,
-                                                 addresses)
-        servers = self._extract_addresses_from_netlogon(result)
+        servers = self._select_domain_controllers(replies, role, maxservers,
+                                                  addresses)
         self.m_logger.debug('found %d domain controllers' % len(servers))
         now = time.time()
         self.m_cache[key] = (now, maxservers, servers)
@@ -226,11 +232,6 @@ class Locator(object):
             if srv not in dict:
                 result.append(srv)
                 dict[srv] = True
-        return result
-
-    def _extract_addresses_from_netlogon(self, replies):
-        """Return (hostname, port) tuples from a list of netlogon replies."""
-        result = [ r.hostname for r in replies ]
         return result
 
     def _check_domain_controller(self, reply, role):
