@@ -24,11 +24,25 @@ class Creds(object):
     c_config_stack = {}
     c_ccache_stack = {}
 
-    # We do not use the "des-*" encryption types for two reasons:
-    # 1. They are less strong than AES and RC4.
-    # 2. Since Windows 2003, Windows has a different idea on how to salt a key
-    #    than MIT Kerberos has. This means that keytabs generated with
-    #    "ktutil" won't work anymore (In windows 2000 this did work).
+    # We only use strong encryption mechanisms so no DES here. RC4 has been
+    # available since the first AD version in Windows 2000 so there's no
+    # backward compatibility issue. AES has been available since Windows 2008.
+    # In case of older Windows version it is not a problem that we include AES
+    # as Kerberos will correctly detect what encryption type to use.
+    #
+    # Note: there's an interoperability issue for computer accounts in Windows
+    # 2003 and later. In Windows 2003, AD changed its principal2salt()
+    # function for computer accounts which means it no longer matches the
+    # implementation in MIT Kerberos. One consequence of this is that keytabs
+    # created by "ktutil" on Unix will be different from keytabs created by
+    # "ktpass" on Windows. Keytabs created for computer accounts on Windows
+    # 2000 still work correctly, and so do keytabs for regular user accounts
+    # on any Windows version.
+    # 
+    # If you're authenticating computer accounts with keytabs, there's two
+    # options. The first is to use the "arcfour-hmac-md5" encryption type
+    # which is unsalted. The second option is to use "msktutil" to create the
+    # keytab on the Unix side.
     c_enctypes = ('aes256-cts-hmac-sha1-96',
                   'aes128-cts-hmac-sha1-96',
                   'arcfour-hmac-md5')
