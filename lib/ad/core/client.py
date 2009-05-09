@@ -21,7 +21,7 @@ from ad.core.creds import Creds
 from ad.core.locate import Locator
 from ad.core.constant import LDAP_PORT, GC_PORT
 from ad.protocol import krb5
-from ad.util.compat import str2dn
+from ad.util import compat
 
 
 class Client(object):
@@ -89,6 +89,8 @@ class Client(object):
         ld.timelimit = self._timelimit
         ld.sizelimit = self._sizelimit
         ld.referrals = self._referrals
+        if compat.disable_reverse_dns():
+            ld.set_option(ldap.OPT_X_SASL_NOCANON, True)
         if bind:
             sasl = ldap.sasl.sasl({}, 'GSSAPI')
             ld.sasl_interactive_bind_s('', sasl)
@@ -96,7 +98,7 @@ class Client(object):
 
     def domain_name_from_dn(self, dn):
         """Given a DN, return a domain."""
-        parts = str2dn(dn)
+        parts = compat.str2dn(dn)
         parts.reverse()
         domain = []
         for part in parts:

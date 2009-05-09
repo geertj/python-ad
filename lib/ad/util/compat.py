@@ -15,3 +15,7 @@ try:
     str2dn = ldap.dn.str2dn
 except AttributeError:
     str2dn = ldap.str2dn
+
+def disable_reverse_dns():
+    # Possibly add in a Kerberos minimum version check as well...
+    return hasattr(ldap, 'OPT_X_SASL_NOCANON')

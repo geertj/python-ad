@@ -10,12 +10,14 @@ import os
 import time
 import logging
 import tempfile
+import ldap
 
 from ad.core.object import factory
 from ad.core.exception import Error
 from ad.core.locate import Locator
 from ad.core.locate import KERBEROS_PORT, KPASSWD_PORT
 from ad.protocol import krb5
+from ad.util import compat
 
 
 class Creds(object):
@@ -245,6 +247,8 @@ class Creds(object):
             fout.write('  dns_lookup_kdc = false\n')
             fout.write('  default_tgs_enctypes = %s\n' % enctypes)
             fout.write('  default_tkt_enctypes = %s\n' % enctypes)
+            if compat.disable_reverse_dns():
+                fout.write('  rdns = no\n')
             fout.write('[realms]\n')
             for domain in self.m_domains:
                 fout.write('  %s = {\n' % domain)

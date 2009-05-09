@@ -14,9 +14,11 @@ import ldap
 import dns.resolver
 import dns.reversename
 import dns.exception
+
 from ad.protocol import netlogon
 from ad.protocol.netlogon import Client as NetlogonClient
 from ad.core.exception import Error as ADError
+from ad.util import compat
 
 
 LDAP_PORT = 389
@@ -246,21 +248,22 @@ class Locator(object):
                                 len(answer))
             return False
         address = answer[0].address
-        revname = dns.reversename.from_address(address)
-        answer = self._dns_query(revname, 'PTR')
-        if len(answer) != 1:
-            self.m_logger.error('Reverse DNS returned %d entries (need 1)'
-                                % len(answer))
-            return False
-        hostname = answer[0].target.to_text()
-        answer = self._dns_query(hostname, 'A')
-        if len(answer) != 1:
-            self.m_logger.error('Second fwd DNS returned %d entries (need 1)'
-                                % len(answer))
-            return False
-        if answer[0].address != address:
-            self.m_logger.error('Second forward DNS does not match first')
-            return False
+        if not compat.disable_reverse_dns():
+            revname = dns.reversename.from_address(address)
+            answer = self._dns_query(revname, 'PTR')
+            if len(answer) != 1:
+                self.m_logger.error('Reverse DNS returned %d entries (need 1)'
+                                    % len(answer))
+                return False
+            hostname = answer[0].target.to_text()
+            answer = self._dns_query(hostname, 'A')
+            if len(answer) != 1:
+                self.m_logger.error('Second fwd DNS returned %d entries (need 1)'
+                                    % len(answer))
+                return False
+            if answer[0].address != address:
+                self.m_logger.error('Second forward DNS does not match first')
+                return False
         if role == 'gc' and not (reply.flags & netlogon.SERVER_GC) or \
                 role == 'pdc' and not (reply.flags & netlogon.SERVER_PDC) or \
                 role == 'dc' and not (reply.flags & netlogon.SERVER_LDAP):
