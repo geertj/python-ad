@@ -22,6 +22,7 @@ setup(
         'Programming Language :: Python'],
     package_dir = {'': 'lib'},
     packages = ['ad', 'ad.core', 'ad.protocol', 'ad.util'],
+    install_requires = [ 'python-ldap', 'dnspython', 'ply' ],
     ext_modules = [Extension('ad.protocol.krb5', ['lib/ad/protocol/krb5.c'],
                              libraries=['krb5'])],
     test_suite = 'nose.collector'
