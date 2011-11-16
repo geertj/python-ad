@@ -393,7 +393,7 @@ class Client(object):
         filter = self._fixup_filter(filter)
         base = self._fixup_base(base)
         scope = self._fixup_scope(scope)
-        atrs = self._fixup_attrs(attrs)
+        attrs = self._fixup_attrs(attrs)
         scheme = self._fixup_scheme(scheme)
         if base == '':
             if server is None:
